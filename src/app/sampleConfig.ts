@@ -6,7 +6,29 @@ import type { DashboardConfig } from '../config/types';
 export const sampleDashboardConfig: DashboardConfig = {
   id: 'sample-dashboard',
   title: 'Sample Dashboard',
-  grid: { columns: 4, rows: 3 },
+  titleElement: {
+    title: 'GeoView Dashboard Example',
+    subtitle: 'A sample dashboard built on the GeoView viewer',
+    optionsMenu: {
+      label: 'View options',
+      options: [
+        { id: 'option-a', label: 'Option A' },
+        { id: 'option-b', label: 'Option B' },
+      ],
+    },
+    hamburgerMenu: {
+      links: [{ id: 'docs', label: 'Documentation', href: 'https://canadian-geospatial-platform.github.io/geoview/' }],
+      notice: {
+        label: 'Notice',
+        title: 'Notice',
+        content: 'This is a sample notice shown in a modal from the hamburger menu.',
+      },
+    },
+  },
+  titlePanel: {
+    left: 'Example Dashboard Title',
+    right: 'Updated daily',
+  },
   dataSources: [
     {
       id: 'sample-api',
@@ -14,11 +36,24 @@ export const sampleDashboardConfig: DashboardConfig = {
       url: 'https://jsonplaceholder.typicode.com/users',
       refresh: { mode: 'static' },
     },
+    {
+      // mapPanelId must match the "id" of the map panel below; layerId is that map's
+      // geoviewLayerId + "/" + layerEntry id (the layerPath GeoView queries features by).
+      id: 'cesi-layer',
+      type: 'map-layer',
+      mapPanelId: 'panel-map',
+      layerId: 'uniqueValueId/1',
+    },
   ],
   linking: {
-    channels: [{ id: 'user-select', type: 'filter', field: 'id' }],
+    channels: [{ id: 'cesi-filter', type: 'filter', field: 'Symbol' }],
   },
-  panels: [
+  pages: [
+    {
+      id: 'main',
+      label: 'Dashboard',
+      grid: { columns: 4, rows: 3 },
+      panels: [
     {
       id: 'panel-map',
       type: 'map',
@@ -71,9 +106,20 @@ export const sampleDashboardConfig: DashboardConfig = {
           panel: {
             id: 'panel-users-chart',
             type: 'chart',
-            dataSource: 'sample-api',
+            dataSource: 'cesi-layer',
             chartType: 'bar',
-            interactions: { emits: ['user-select'] },
+            field: 'Symbol',
+            interactions: { emits: ['cesi-filter'] },
+          },
+        },
+        {
+          id: 'layer',
+          label: 'Map Layer',
+          panel: {
+            id: 'panel-layer-table',
+            type: 'table',
+            dataSource: 'cesi-layer',
+            interactions: { listensTo: ['cesi-filter'] },
           },
         },
         {
@@ -82,8 +128,7 @@ export const sampleDashboardConfig: DashboardConfig = {
           panel: {
             id: 'panel-users-table',
             type: 'table',
-            dataSource: 'sample-api',
-            interactions: { listensTo: ['user-select'] },
+            dataSource: 'sample-api'
           },
         },
       ],
@@ -93,15 +138,29 @@ export const sampleDashboardConfig: DashboardConfig = {
       type: 'filter',
       title: 'Filter',
       layout: { col: 1, row: 3, colSpan: 1, rowSpan: 1 },
-      control: 'dropdown',
-      field: 'username',
+      dataSource: 'cesi-layer',
+      fields: [{ field: 'E_Regulated' }, { field: 'E_SampleType' }, { field: 'E_Overall_Condition' }],
+      interactions: { emits: ['cesi-filter'] },
     },
     {
       id: 'panel-stat',
-      type: 'stat',
-      title: 'User Count',
+      type: 'stack',
       layout: { col: 2, row: 3, colSpan: 1, rowSpan: 1 },
-      dataSource: 'sample-api',
+      items: [
+        {
+          id: 'panel-stat-filtered',
+          type: 'stat',
+          title: 'Project Count',
+          dataSource: 'cesi-layer',
+          interactions: { listensTo: ['cesi-filter'] },
+        },
+        {
+          id: 'panel-stat-total',
+          type: 'stat',
+          title: 'Total Count',
+          dataSource: 'cesi-layer',
+        },
+      ],
     },
     {
       id: 'panel-legend',
@@ -116,6 +175,21 @@ export const sampleDashboardConfig: DashboardConfig = {
       title: 'Notes',
       layout: { col: 4, row: 3, colSpan: 1, rowSpan: 1 },
       content: 'Notes panel placeholder.',
+    },
+      ],
+    },
+    {
+      id: 'page-2',
+      label: 'Second Page',
+      grid: { columns: 1, rows: 1 },
+      panels: [
+        {
+          id: 'panel-second-page-note',
+          type: 'text',
+          layout: { col: 1, row: 1, colSpan: 1, rowSpan: 1 },
+          content: 'This is an example second page.',
+        },
+      ],
     },
   ],
 };

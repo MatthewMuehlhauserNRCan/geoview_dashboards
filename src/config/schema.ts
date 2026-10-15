@@ -32,6 +32,7 @@ const chartPanelFields = z.object({
   ...baseFields,
   type: z.literal('chart'),
   chartType: z.enum(['bar', 'line', 'pie', 'scatter', 'histogram']),
+  field: z.string().optional(),
 });
 
 const statPanelFields = z.object({ ...baseFields, type: z.literal('stat') });
@@ -44,11 +45,15 @@ const legendPanelFields = z.object({
   mapPanelId: z.string().optional(),
 });
 
+const filterFieldSchema = z.object({
+  field: z.string(),
+  label: z.string().optional(),
+});
+
 const filterPanelFields = z.object({
   ...baseFields,
   type: z.literal('filter'),
-  control: z.enum(['dropdown', 'slider', 'date-range', 'search']),
-  field: z.string(),
+  fields: z.array(filterFieldSchema),
 });
 
 const textPanelFields = z.object({
@@ -79,6 +84,14 @@ const tabPanelFields = z.object({
   tabs: z.array(tabItemSchema),
 });
 
+const stackPanelFields = z.object({
+  ...baseFields,
+  type: z.literal('stack'),
+  direction: z.enum(['row', 'column']).optional(),
+  sizes: z.array(z.number()).optional(),
+  items: z.array(leafPanelSchema),
+});
+
 const panelSchema = z.discriminatedUnion('type', [
   mapPanelFields,
   chartPanelFields,
@@ -88,6 +101,7 @@ const panelSchema = z.discriminatedUnion('type', [
   filterPanelFields,
   textPanelFields,
   tabPanelFields,
+  stackPanelFields,
 ]);
 
 // A panel as placed on the dashboard grid always carries a layout.
@@ -144,13 +158,71 @@ const gridSchema = z.object({
   template: z.string().optional(),
 });
 
+const titleImageSchema = z.object({
+  src: z.string(),
+  alt: z.string().optional(),
+  href: z.string().optional(),
+});
+
+const titleMenuOptionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+});
+
+const titleOptionsMenuSchema = z.object({
+  icon: titleImageSchema.optional(),
+  label: z.string().optional(),
+  options: z.array(titleMenuOptionSchema),
+});
+
+const titleHamburgerLinkSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  href: z.string(),
+});
+
+const titleHamburgerNoticeSchema = z.object({
+  label: z.string(),
+  title: z.string(),
+  content: z.string(),
+});
+
+const titleHamburgerMenuSchema = z.object({
+  links: z.array(titleHamburgerLinkSchema).optional(),
+  notice: titleHamburgerNoticeSchema.optional(),
+});
+
+const titleElementSchema = z.object({
+  image: titleImageSchema.optional(),
+  title: z.string(),
+  subtitle: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  optionsMenu: titleOptionsMenuSchema.optional(),
+  hamburgerMenu: titleHamburgerMenuSchema.optional(),
+});
+
+const titlePanelSchema = z.object({
+  left: z.string().optional(),
+  image: titleImageSchema.optional(),
+  right: z.string().optional(),
+  backgroundColor: z.string().optional(),
+});
+
+const dashboardPageSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  grid: gridSchema,
+  panels: z.array(gridPanelSchema),
+});
+
 export const dashboardConfigSchema = z.object({
   id: z.string(),
   title: z.string(),
-  grid: gridSchema,
+  titleElement: titleElementSchema.optional(),
+  titlePanel: titlePanelSchema.optional(),
+  pages: z.array(dashboardPageSchema),
   dataSources: z.array(dataSourceSchema),
   linking: linkingSchema.optional(),
-  panels: z.array(gridPanelSchema),
 });
 
 export function parseDashboardConfig(input: unknown) {

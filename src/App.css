@@ -5,8 +5,14 @@
   background: #f5f5f5;
 }
 
+.dashboard-grid-nested {
+  /* Nested Grids (independent sub-zones carved out by DashboardGrid's partitioner) inherit
+     their size from the enclosing Cell - only box-sizing needs resetting here. */
+  box-sizing: border-box;
+}
+
 .grid-divider {
-  background: transparent;
+  background: #d1d1d1;
   transition: background-color 0.15s ease;
 }
 

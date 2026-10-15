@@ -1,64 +1,13 @@
-// Minimal duck-typed view of the parts of GeoView's global `cgpv` API this app uses.
-// GeoView has no npm package/types here; it's loaded as a global script (see loadCgpv.ts).
-// Verified against the real source (Canadian-Geospatial-Platform/geoview, develop branch):
-// - api.ts: createMapFromConfigFast, hasMapViewer, deleteMapViewer
-// - layer.ts (LayerApi): getGeoviewLayerIds, getGeoviewLayerRegularIfExists, allFeatureInfoLayerSet
-// - gv-layers/abstract-gv-layer.ts: getQueryable()
+// Re-exports the subset of GeoView's own (real) types this app uses, instead of hand-rolled
+// duck types - sourced from the `geoview-core-types` devDependency (package.json), a types-only
+// package built straight from geoview-core's source (see the geoview repo's
+// docs/app/accessing-types.md for how it's published/kept in sync). GeoView itself still has no
+// runtime npm package here - it's loaded as a global script (see loadCgpv.ts) - so these are
+// compile-time-only `import type`s/re-exports, erased entirely before bundling.
+export type { MapViewer } from 'geoview-core-types/src/geo/map/map-viewer';
+export type { AbstractGVLayer } from 'geoview-core-types/src/geo/layer/gv-layers/abstract-gv-layer';
+export type { TypeFeatureInfoEntry, TypeFeatureInfoResult } from 'geoview-core-types/src/api/types/map-schema-types';
+// Importing TypeWindow also pulls in geoview-core-types' own `declare global` augmentation of
+// `Window.cgpv`, so this app doesn't need to (re-)declare that global itself.
+export type { TypeWindow } from 'geoview-core-types/src/core/types/global-types';
 
-export interface GeoViewFieldEntry {
-  value?: unknown;
-}
-
-// TODO: confirmed the `fieldInfo` shape exists, but the exact TypeFieldEntry fields beyond
-// `value` weren't fetched from source yet - revisit if flattened records look wrong at runtime.
-export interface GeoViewFeatureInfoEntry {
-  fieldInfo?: Record<string, GeoViewFieldEntry | undefined>;
-}
-
-export interface GeoViewFeatureInfoResult {
-  results: GeoViewFeatureInfoEntry[];
-}
-
-export interface GeoViewLayer {
-  getLayerPath(): string;
-  getLayerName?(): string;
-  getQueryable(): boolean;
-  // Per-geometry-type style entries (e.g. keyed by 'Point'/'LineString'/'Polygon'), or undefined
-  // if no style has been computed yet - method is always present, its return value isn't.
-  getStyle(): Record<string, unknown> | undefined;
-}
-
-export interface GeoViewMapViewer {
-  mapId: string;
-  layer: {
-    getGeoviewLayerIds(): string[];
-    getGeoviewLayerRegularIfExists(layerPath: string): GeoViewLayer | undefined;
-    allFeatureInfoLayerSet: {
-      queryLayer(layerPath: string): Promise<GeoViewFeatureInfoResult>;
-    };
-  };
-  controllers: {
-    // Upstream (PR #3685, "map resizes to fill container"): re-syncs the map shell's
-    // appHeight to an explicit height. GeoView's own auto-detect (useEffectHostResizeSync)
-    // exists but doesn't reliably pick up our panel's layout-driven resizes.
-    uiController: {
-      resizeMapHeight(height: number): void;
-    };
-  };
-}
-
-export interface CgpvApi {
-  createMapFromConfigFast(divId: string, mapConfig: string, divHeight?: number): Promise<GeoViewMapViewer>;
-  hasMapViewer(mapId: string): boolean;
-  deleteMapViewer(mapId: string, deleteContainer: boolean): Promise<void>;
-}
-
-export interface CgpvGlobal {
-  api: CgpvApi;
-}
-
-declare global {
-  interface Window {
-    cgpv?: CgpvGlobal;
-  }
-}

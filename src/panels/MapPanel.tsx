@@ -5,7 +5,7 @@ import { useMapRegistryStore } from '../map/registry';
 import { loadCgpv } from '../geoview/loadCgpv';
 import { createGeoviewMapHandle } from '../geoview/mapHandleAdapter';
 import { runMapLifecycleStep } from '../geoview/mapLifecycle';
-import type { GeoViewMapViewer } from '../geoview/cgpvTypes';
+import type { MapViewer } from '../geoview/cgpvTypes';
 
 interface MapPanelProps {
   panel: MapPanelConfig;
@@ -13,7 +13,7 @@ interface MapPanelProps {
 
 export function MapPanel({ panel }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapViewerRef = useRef<GeoViewMapViewer | null>(null);
+  const mapViewerRef = useRef<MapViewer | null>(null);
   const registerMap = useMapRegistryStore((state) => state.registerMap);
   const unregisterMap = useMapRegistryStore((state) => state.unregisterMap);
 
@@ -84,7 +84,10 @@ export function MapPanel({ panel }: MapPanelProps) {
   return (
     // GeoView already has its own fullscreen control, so this panel doesn't need ours too
     <PanelContainer title={panel.title} expandable={false} disablePadding>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {/* box-sizing: border-box keeps this div's total footprint at exactly 100% of its parent
+          Cell even with the border added (otherwise the border would add 2px on top of 100%,
+          overflowing the Cell) - the map then renders just inside the border, not under it. */}
+      <div ref={containerRef} style={{ width: '100%', height: '100%', border: '1px solid gray', boxSizing: 'border-box' }} />
     </PanelContainer>
   );
 }

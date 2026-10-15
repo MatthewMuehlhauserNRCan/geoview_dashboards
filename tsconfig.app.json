@@ -16,6 +16,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* geoview-core-types' own .d.ts files import each other via "@/..." (mirroring geoview-core's
+       own webpack alias) - map that alias to the installed package so those imports resolve. */
+    "paths": {
+      "@/*": ["./node_modules/geoview-core-types/src/*"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

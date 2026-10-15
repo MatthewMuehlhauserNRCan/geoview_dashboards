@@ -8,6 +8,9 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  /* Explicit so a transparent gap never exposes the browser's dark-mode default canvas color
+     (this page supports `color-scheme: light dark` above, but isn't itself a dark theme). */
+  background: #fff;
 }
 
 #root {

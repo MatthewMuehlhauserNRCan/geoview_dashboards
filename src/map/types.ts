@@ -12,4 +12,7 @@ export interface DashboardMapLayerInfo {
 export interface DashboardMapHandle {
   listLayers(): DashboardMapLayerInfo[];
   getLayerFeatures(layerId: string): Promise<Record<string, unknown>[]>;
+  // Applies (or clears, via undefined/empty) an attribute filter (SQL-like WHERE expression) on
+  // a layer already loaded in this map - e.g. so a filter panel can restrict what the map shows.
+  setLayerFilter(layerId: string, expression: string | undefined): void;
 }

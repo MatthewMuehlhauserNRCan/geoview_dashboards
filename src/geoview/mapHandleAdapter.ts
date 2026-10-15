@@ -1,17 +1,17 @@
 import type { DashboardMapHandle, DashboardMapLayerInfo, LayerGeometryType } from '../map/types';
-import type { GeoViewFeatureInfoEntry, GeoViewMapViewer } from './cgpvTypes';
+import type { MapViewer, TypeFeatureInfoEntry } from './cgpvTypes';
 
 // Bridges a live GeoView MapViewer to the app's generic DashboardMapHandle contract.
-export function createGeoviewMapHandle(mapViewer: GeoViewMapViewer): DashboardMapHandle {
+export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle {
   return {
     listLayers(): DashboardMapLayerInfo[] {
-      return mapViewer.layer.getGeoviewLayerIds().map((layerPath) => {
+      return mapViewer.layer.getGeoviewLayerPaths().map((layerPath) => {
         const layer = mapViewer.layer.getGeoviewLayerRegularIfExists(layerPath);
         const style = layer?.getStyle();
         const [firstGeometryKey] = style ? Object.keys(style) : [];
         return {
           id: layerPath,
-          name: layer?.getLayerName?.() ?? layerPath,
+          name: layer?.getLayerName() ?? layerPath,
           geometryType: toLayerGeometryType(firstGeometryKey),
           queryable: layer?.getQueryable() ?? false,
         };
@@ -22,6 +22,11 @@ export function createGeoviewMapHandle(mapViewer: GeoViewMapViewer): DashboardMa
       // throw NotImplementedError here), so no separate vector-type check is needed on our side.
       const result = await mapViewer.layer.allFeatureInfoLayerSet.queryLayer(layerPath);
       return result.results.map(flattenFieldInfo);
+    },
+    setLayerFilter(layerPath: string, expression: string | undefined) {
+      // The 'panel' filter category is specifically reserved for custom filter UIs like ours (as
+      // opposed to 'data'/'time', which are GeoView's own data-table/time-slider categories).
+      mapViewer.layer.getGeoviewLayerRegularIfExists(layerPath)?.setLayerFiltersPanel(expression || undefined);
     },
   };
 }
@@ -40,7 +45,7 @@ function toLayerGeometryType(rawGeometryType: string | undefined): LayerGeometry
   }
 }
 
-function flattenFieldInfo(entry: GeoViewFeatureInfoEntry): Record<string, unknown> {
+function flattenFieldInfo(entry: TypeFeatureInfoEntry): Record<string, unknown> {
   const record: Record<string, unknown> = {};
   for (const [field, info] of Object.entries(entry.fieldInfo ?? {})) {
     record[field] = info?.value;
