@@ -1,5 +1,5 @@
 import type { DashboardMapHandle, DashboardMapLayerInfo, LayerGeometryType } from '../map/types';
-import type { MapViewer, TypeFeatureInfoEntry } from './cgpvTypes';
+import type { DomainLayerStatusChangedDelegate, MapViewer, TypeFeatureInfoEntry } from './cgpvTypes';
 
 // Bridges a live GeoView MapViewer to the app's generic DashboardMapHandle contract.
 export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle {
@@ -27,6 +27,13 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
       // The 'panel' filter category is specifically reserved for custom filter UIs like ours (as
       // opposed to 'data'/'time', which are GeoView's own data-table/time-slider categories).
       mapViewer.layer.getGeoviewLayerRegularIfExists(layerPath)?.setLayerFiltersPanel(expression || undefined);
+    },
+    onLayerLoaded(callback: (layerId: string) => void) {
+      const handler: DomainLayerStatusChangedDelegate = (_layerDomain, event) => {
+        if (event.status === 'loaded') callback(event.config.layerPath);
+      };
+      mapViewer.layer.onLayerStatusChanged(handler);
+      return () => mapViewer.layer.offLayerStatusChanged(handler);
     },
   };
 }

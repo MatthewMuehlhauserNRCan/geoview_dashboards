@@ -109,18 +109,28 @@ the dashboard's own map panels, instead of making a separate network request:
   panel registers itself into once its map has loaded (`registerMap(panelId, handle)`), and
   removes itself from on unmount. Other code looks the handle up by id — reactively via
   `useMapHandle` (React) or synchronously via `getMapHandle` (inside a data source's `fetch`).
+  `useLayerReady(mapPanelId, layerId)` goes one step further: GeoView loads each configured
+  layer asynchronously after the map itself registers, so a layer can legitimately be missing
+  from `listLayers()` for a while even after the map handle exists — this hook resolves the
+  moment that specific layer finishes loading, by subscribing to the map handle's
+  `onLayerLoaded` event (backed by GeoView's real `mapViewer.layer.onLayerStatusChanged`/
+  `offLayerStatusChanged` API, confirmed via its real types and verified live — status
+  transitions through `registered → processing → processed → loading → loaded`), not by polling.
 - **Map handle contract** (`src/map/types.ts`): whatever loads the real map (GeoView) must expose
-  `listLayers(): DashboardMapLayerInfo[]` and `getLayerFeatures(layerId)`. Each layer reports a
-  `queryable` flag — **only vector layers with individually accessible features are queryable**;
-  raster/tile layers (WMS/WMTS/tile) report `queryable: false` and can't be used as a data source.
+  `listLayers(): DashboardMapLayerInfo[]`, `getLayerFeatures(layerId)`, and `onLayerLoaded(callback)`
+  (returns an unsubscribe function). Each layer reports a `queryable` flag — **only vector layers
+  with individually accessible features are queryable**; raster/tile layers (WMS/WMTS/tile)
+  report `queryable: false` and can't be used as a data source.
 - The `map-layer` provider looks up the map by id, finds the layer, rejects non-queryable layers
   with a clear error, then calls `getLayerFeatures` — returning the same record shape as any
   other data source, so charts/tables/stats don't need to know where the data came from.
-- `useDataSource` treats a `map-layer` source as "not ready" until its map panel has registered
-  (a map panel mounts and loads asynchronously), so panels show a loading state instead of
-  erroring while the map is still starting up.
+- `useDataSource` treats a `map-layer` source as "not ready" until `useLayerReady` resolves (not
+  just until the map panel has registered) — this is a reactive React state change, so the query
+  fires the moment the layer becomes available instead of only on a panel's next remount (e.g.
+  switching tabs away and back used to be the only thing that "fixed" a stuck panel).
 - `MapPanel` currently registers a stub handle with an empty layer list (no real GeoView
   integration yet) purely to exercise this registration lifecycle end-to-end.
+
 
 - **Auth**: per-source auth block (`none` for v1; token-based auth deferred until a real source
   needs it — don't build speculative auth flows).
@@ -138,13 +148,45 @@ Required for v1. Panels don't reference each other directly — they publish/sub
 
 ## 7. Authoring
 
-Built-in **edit mode** in the same viewer app (not a separate builder app):
+**SUPERSEDED (2026-10-15)**: originally planned as a built-in edit mode inside the viewer app.
+Reversed because there's no auth/user system in this app to gate who can see an edit affordance
+on a live, publicly-viewable dashboard — so authoring is instead a **completely separate app**,
+not reachable from (or shipped with) the end-viewer dashboard:
 
-- Same rendering code is used for view and edit — WYSIWYG by construction, no second renderer
-  to keep in sync.
-- Edit-mode UI (drag/resize handles, panel inspector, data source manager) is code-split and
-  lazy-loaded, so it isn't shipped to end viewers who only ever render a finished dashboard.
-- Edit mode reads/writes the same JSON config that the runtime consumes.
+- Separate Vite multi-page entry: `editor.html` → `src/editor/main.tsx` → `EditorApp`, built as
+  its own bundle alongside the viewer's `index.html`/`main.tsx` (`vite.config.ts`'s
+  `build.rollupOptions.input` lists both). The viewer never imports anything from `src/editor/`.
+  `src/editor/EditModeApp.tsx` (the original in-viewer stub) was deleted.
+- Still WYSIWYG-ish: the editor reuses real runtime pieces where it matters most (notably
+  `MapPanel`/the map registry, for live layer discovery — see below) rather than hand-rolling a
+  second map-rendering path, but it is its own standalone UI, not the same rendered view toggled
+  into an "edit mode".
+- State: a Zustand store (`src/editor/store.ts`) holds the in-progress `DashboardConfig` draft,
+  persisted to `localStorage` (`zustand/middleware`'s `persist`) so a page refresh doesn't lose
+  work. Saving/loading a real config is explicit: **Export** validates via the existing
+  `dashboardConfigSchema` (Zod) and downloads a `.json` file; **Import** reads an uploaded file
+  through the same schema before replacing the draft. There is no backend — this is the only
+  persistence model for v1.
+- Grid/panel placement is **click-based, not pixel drag-and-drop** (a deliberate v1 scope call):
+  click an empty cell to add a panel there, then use small arrow buttons to move it cell-by-cell
+  and +/- steppers to grow/shrink its `colSpan`/`rowSpan` once selected (`GridEditor.tsx`).
+- **Map-driven data source discovery** (the main "pull from the map" ask): a `map` panel needs a
+  real, valid GeoView config pasted into its inspector before it's useful — once pasted, the
+  editor can mount a genuinely live GeoView map for it (`MapPreview.tsx`, reusing the exact same
+  `src/panels/MapPanel.tsx` component and map registry the end-viewer dashboard uses) and the
+  **map-layer** data source dialog then lists that map's real queryable layers (via
+  `useMapHandle(mapPanelId)?.listLayers()`) instead of requiring the author to type a layer path
+  blind. Verified live end-to-end: pasting a real CESI map config renders the actual map with
+  real features, and the data-source dialog's "Layer" dropdown correctly lists `uniqueValue`
+  (`layerId: "uniqueValueId/1"`), matching what was previously only hand-authored in
+  `sampleConfig.ts`.
+- Panel property editing (`PanelInspector.tsx`) covers every panel type, including recursive
+  editing of `tab`/`stack`'s nested leaf panels (shared `LeafPanelFields` component, reused both
+  top-level and nested - nesting a tab/stack inside another tab/stack still isn't offered, same
+  restriction as the schema itself).
+- Not yet covered by the editor UI (schema already supports these, just no form yet - add if
+  asked): `titleElement`/`titlePanel`/footer authoring, and no overlap-prevention when manually
+  moving/resizing panels (same permissiveness as hand-authoring raw JSON today).
 
 ## 8. Config schema (draft — will evolve)
 

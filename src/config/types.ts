@@ -170,10 +170,12 @@ export interface GridConfig {
 
 // One switchable "view" of the dashboard - its own grid + panels, sharing the parent
 // DashboardConfig's dataSources/linking. A footer tab bar lets viewers switch between pages
-// (rendered automatically whenever there's more than one).
+// (rendered automatically whenever there's more than one). `titlePanel` is per-page (unlike
+// `titleElement`, which is dashboard-wide) so e.g. the right-side text can differ per page.
 export interface DashboardPageConfig {
   id: string;
   label: string;
+  titlePanel?: TitlePanelConfig;
   grid: GridConfig;
   panels: GridPanel[];
 }
@@ -181,10 +183,10 @@ export interface DashboardPageConfig {
 export interface DashboardConfig {
   id: string;
   title: string;
-  // Both sit above the main grid, outside the col/row panel system entirely (so authoring the
-  // rest of `panels` never has to account for them) - see src/title/. Either/both may be omitted.
+  // Sits above the main grid, outside the col/row panel system entirely (so authoring the rest
+  // of `panels` never has to account for it) - see src/title/. Shared across every page, unlike
+  // `titlePanel` which is authored per-page (DashboardPageConfig.titlePanel).
   titleElement?: TitleElementConfig;
-  titlePanel?: TitlePanelConfig;
   pages: DashboardPageConfig[];
   dataSources: DataSourceConfig[];
   linking?: LinkingConfig;

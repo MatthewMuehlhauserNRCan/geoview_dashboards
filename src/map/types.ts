@@ -15,4 +15,7 @@ export interface DashboardMapHandle {
   // Applies (or clears, via undefined/empty) an attribute filter (SQL-like WHERE expression) on
   // a layer already loaded in this map - e.g. so a filter panel can restrict what the map shows.
   setLayerFilter(layerId: string, expression: string | undefined): void;
+  // Fires the moment a layer finishes loading (not just when it starts) - lets dependent data
+  // sources react instantly instead of polling. Returns an unsubscribe function.
+  onLayerLoaded(callback: (layerId: string) => void): () => void;
 }

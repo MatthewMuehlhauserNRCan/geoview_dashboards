@@ -39,7 +39,7 @@ export function DashboardApp({ config }: DashboardAppProps) {
             overflow: 'hidden',
           }}
         >
-          {config.titlePanel && <TitlePanel config={config.titlePanel} />}
+          {activePage.titlePanel && <TitlePanel key={activePage.id} config={activePage.titlePanel} />}
           {/* Only the grid gets the remaining space and may scroll/shrink - nothing around it
               is ever pushed off-screen or clipped. */}
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>

@@ -211,6 +211,7 @@ const titlePanelSchema = z.object({
 const dashboardPageSchema = z.object({
   id: z.string(),
   label: z.string(),
+  titlePanel: titlePanelSchema.optional(),
   grid: gridSchema,
   panels: z.array(gridPanelSchema),
 });
@@ -219,7 +220,6 @@ export const dashboardConfigSchema = z.object({
   id: z.string(),
   title: z.string(),
   titleElement: titleElementSchema.optional(),
-  titlePanel: titlePanelSchema.optional(),
   pages: z.array(dashboardPageSchema),
   dataSources: z.array(dataSourceSchema),
   linking: linkingSchema.optional(),
