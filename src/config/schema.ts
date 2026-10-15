@@ -115,9 +115,17 @@ const staticFileDataSourceSchema = z.object({
   url: z.string(),
 });
 
+const mapLayerDataSourceSchema = z.object({
+  id: z.string(),
+  type: z.literal('map-layer'),
+  mapPanelId: z.string(),
+  layerId: z.string(),
+});
+
 const dataSourceSchema = z.discriminatedUnion('type', [
   restJsonDataSourceSchema,
   staticFileDataSourceSchema,
+  mapLayerDataSourceSchema,
 ]);
 
 const linkingChannelSchema = z.object({
@@ -131,6 +139,8 @@ const linkingSchema = z.object({ channels: z.array(linkingChannelSchema) });
 const gridSchema = z.object({
   columns: z.number(),
   rows: z.number(),
+  columnSizes: z.array(z.number()).optional(),
+  rowSizes: z.array(z.number()).optional(),
   template: z.string().optional(),
 });
 

@@ -22,9 +22,42 @@ export const sampleDashboardConfig: DashboardConfig = {
     {
       id: 'panel-map',
       type: 'map',
-      title: 'Map',
+      // title: 'Map',
       layout: { col: 1, row: 1, colSpan: 2, rowSpan: 2 },
-      config: {},
+      // Minimal valid GeoView config (verified against docs/app/api/api.md's own example)
+      config: {
+        map: {
+          interaction: 'dynamic',
+          viewSettings: {
+            projection: 3978,
+            initialView: { zoomAndCenter: [4, [-95, 55]] },
+          },
+          basemapOptions: { basemapId: 'transport', shaded: true, labeled: true },
+          "listOfGeoviewLayerConfig": [
+            {
+              "geoviewLayerId": "uniqueValueId",
+              "geoviewLayerName": "uniqueValue",
+              "metadataAccessPath": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/CESI/MapServer/",
+              "geoviewLayerType": "esriFeature",
+              "listOfLayerEntryConfig": [
+                  {
+                      "layerId": "1"
+                  }
+              ]
+            }
+          ]
+        },
+        appBar: {
+          tabs: {
+            "core": []
+          }
+        },
+        footerBar: {
+          tabs: {
+            "core": []
+          }
+        }
+      },
     },
     {
       id: 'panel-users-views',

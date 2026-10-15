@@ -1,7 +1,29 @@
 .dashboard-grid {
-  width: 100vw;
-  height: 100vh;
+  /* width/height come from the Grid component itself (100%); the html/body/#root chain
+     in index.css gives that 100% something definite to resolve against. */
   box-sizing: border-box;
   background: #f5f5f5;
 }
+
+.grid-divider {
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.grid-divider[aria-orientation='vertical'] {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.grid-divider[aria-orientation='horizontal'] {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.grid-divider:hover,
+.grid-divider[data-separator='active'],
+.grid-divider[data-separator='focus'] {
+  background: rgba(25, 118, 210, 0.25);
+}
+
 

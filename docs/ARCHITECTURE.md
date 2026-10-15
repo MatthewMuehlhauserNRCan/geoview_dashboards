@@ -6,7 +6,8 @@ Status: **decisions locked for v1 planning** — revisit as implementation surfa
 
 - Embeddable the same way as GeoView / GeoView Stories: a bundle + JSON/YAML config dropped into a page.
 - Arrange multiple panels (map + non-map) on a fixed NxM grid (e.g. 3x3, 4x4) that always fills
-  the viewport — panels can span multiple cells, but nothing resizes or scrolls the page.
+  the viewport — panels can span multiple cells, and column/row track sizes are user-draggable
+  (like an ESRI Dashboard), but the grid itself always fills 100% of the page, never scrolls.
 - Support data sources beyond map layers (REST APIs, static files, later: real-time/DB).
 - Panels can be linked (cross-filtering/brushing), not just independent widgets.
 - Authoring is a first-class concern: config is complex enough that hand-editing JSON isn't
@@ -19,8 +20,8 @@ Status: **decisions locked for v1 planning** — revisit as implementation surfa
 | UI framework | React + TypeScript | Matches GeoView/Stories |
 | UI kit | MUI | Reuse GeoView's component look/feel |
 | Map | GeoView core map package (dependency, not reimplemented) | Map panel config passes straight through to GeoView |
-| Charts | ECharts or Vega-Lite (TBD when we build the chart panel) | Spec/config-driven, fits "config → render" model |
-| Layout engine | Native CSS Grid | Fixed `columns`/`rows`; panels place via `{col, row, colSpan, rowSpan}` |
+| Charts | `chart.js` + `react-chartjs-2` | Matches geoview-geochart's underlying engine; bar/line/pie/scatter built in |
+| Layout engine | `react-resizable-panels` (`Grid`/`Cell`/`Gridline`) | Fixed `columns`/`rows`, draggable tracks that never divide a spanning cell |
 | State / event bus | Zustand + small pub/sub channel model | Needed for cross-panel linking |
 | Data fetching/caching | TanStack Query | Polling, caching, retry for external sources |
 | Config validation | Zod (runtime) + JSON Schema (authoring + docs) | Fail fast with author-friendly errors |
@@ -29,12 +30,28 @@ Status: **decisions locked for v1 planning** — revisit as implementation surfa
 ## 3. Grid / layout
 
 - Fixed NxM grid (e.g. 3x3, 4x4, or any author-chosen `columns`/`rows`) that always fills
-  `100vw`/`100vh` — no page scroll, no leftover space. Implemented as native CSS Grid
-  (`grid-template-columns/rows: repeat(N, 1fr)`), not a drag/resize library.
+  `100%` of its container (which the `html`/`body`/`#root` chain in `index.css` in turn makes
+  the full viewport) — no page scroll, no leftover space.
 - Panels declare a position and span — `{col, row, colSpan, rowSpan}` (1-indexed) — so any panel
-  can take up multiple cells, but the grid dimensions themselves never change at runtime.
-- **No free-drag resizing** in the viewer. If an edit mode adds resizing later, it would be
-  constrained to picking `colSpan`/`rowSpan` on the fixed grid, not pixel-level dragging.
+  can take up multiple cells, but the grid's `columns`/`rows` counts themselves never change at
+  runtime (no adding/removing tracks outside of edit mode).
+- **Track sizes are draggable** (like an ESRI Dashboard), implemented with
+  [`react-resizable-panels`](https://react-resizable-panels.vercel.app/)'s `Grid`/`Cell`/
+  `Gridline` API rather than a hand-rolled CSS Grid + custom drag code (an earlier version of
+  this doc described the latter — superseded). This library was specifically chosen because it
+  **refuses to place a resize divider across a boundary that a spanning cell crosses** — e.g. a
+  panel spanning 2x2 cells never gets a "phantom" divider running through its middle, which a
+  naive shared-track CSS Grid does (confirmed as a real bug in this app before switching).
+  `DashboardGrid.tsx` computes, per internal grid line, the contiguous runs along the
+  cross-axis that aren't blocked by a spanning cell, and renders one `Gridline` per run — so a
+  boundary that's fully free gets one full-length divider, one that's partially blocked gets a
+  divider only in the free segment(s), and one that's fully blocked (e.g. entirely inside a
+  spanning panel) gets no divider at all.
+- Relative size weights per column/row (`GridConfig.columnSizes`/`rowSizes`, like CSS `fr` units)
+  feed the `Grid`'s `defaultLayout` prop as a starting point; the library manages live dragging
+  itself (ephemeral per viewer, resets on reload). An author can set different starting weights
+  in the config; a future edit mode would persist a viewer's drag via the library's own
+  `onLayoutChanged` callback, writing back into those same config fields.
 - Authoring offers **template presets** (e.g. "3x3", "4x4", "map-focus") that just pre-fill
   `columns`/`rows` and a starting panel layout — presets are a convenience, not a separate engine.
 - To explore something bigger than its cell (e.g. a data table), a panel has a **fullscreen/
@@ -54,9 +71,11 @@ Status: **decisions locked for v1 planning** — revisit as implementation surfa
 
 Time slider, gauge, and media panels are deferred post-v1.
 
-**Fullscreen/lightbox**: every leaf panel (not `tab`, which already switches views) exposes an
-expand action that opens the same panel content in a fullscreen dialog, for exploring data
-(e.g. a table) without resizing its grid cell.
+**Fullscreen/lightbox**: every leaf panel (not `tab`, which already switches views, and not
+`map`/`table`, which already ship their own fullscreen control) exposes an expand action that
+opens the same panel content in a fullscreen dialog. The expand button is hidden until the panel
+is hovered (or focused, for keyboard use), so it doesn't clutter the view — matching the ESRI
+Dashboard convention.
 
 **Tab panel**: `type: "tab"` holds a list of `{ id, label, panel }` tabs, each wrapping one leaf
 panel (chart/table/stat/etc., minus its own `layout` — position belongs to the tab panel, not
@@ -65,17 +84,44 @@ the schema simple.
 
 ## 5. Data connection infrastructure
 
-Map layers keep their existing connectors (WMS/WFS/ESRI/GeoJSON via GeoView). Dashboards add a
-**data source layer independent of the map**, since charts/tables/stats may not touch the map.
+Dashboards need data from two places: sources authors add themselves, and data that already
+exists inside one of the dashboard's own map panels. Both are exposed through the same
+**data source registry** so any panel (chart/table/stat/...) can consume either one identically.
 
 - **Data source registry**: named sources in config, each with a `type`. v1 priority types:
-  - `rest-json` — REST/JSON APIs
-  - `static-file` — CSV/JSON/Excel served as a file
+  - `rest-json` — REST/JSON APIs (author-added)
+  - `static-file` — CSV/JSON/Excel served as a file (author-added)
+  - `map-layer` — reads features from a vector layer already loaded in one of the dashboard's
+    map panels (see below)
   - Deferred: OGC API Features as tabular data, WebSocket/SSE real-time, DB-via-backend-proxy.
 - **Per-panel query**: a panel references a `dataSource` id plus a query/transform (filter,
   group-by, aggregate, field mapping) so one source can feed multiple panels differently.
 - **Refresh strategy**: `static` (load once) vs `interval` (poll every N seconds) per source.
-  Push-based (websocket) sources are a later phase.
+  Push-based (websocket) sources are a later phase. `map-layer` sources are refetched on demand
+  (via the query cache) rather than live-subscribed to map events for v1 — see open questions.
+
+### Map-layer data sources
+
+A `map-layer` source (`{ mapPanelId, layerId }`) reads features from a layer already on one of
+the dashboard's own map panels, instead of making a separate network request:
+
+- **Map registry** (`src/map/registry.ts`): a small store, keyed by map panel id, that a map
+  panel registers itself into once its map has loaded (`registerMap(panelId, handle)`), and
+  removes itself from on unmount. Other code looks the handle up by id — reactively via
+  `useMapHandle` (React) or synchronously via `getMapHandle` (inside a data source's `fetch`).
+- **Map handle contract** (`src/map/types.ts`): whatever loads the real map (GeoView) must expose
+  `listLayers(): DashboardMapLayerInfo[]` and `getLayerFeatures(layerId)`. Each layer reports a
+  `queryable` flag — **only vector layers with individually accessible features are queryable**;
+  raster/tile layers (WMS/WMTS/tile) report `queryable: false` and can't be used as a data source.
+- The `map-layer` provider looks up the map by id, finds the layer, rejects non-queryable layers
+  with a clear error, then calls `getLayerFeatures` — returning the same record shape as any
+  other data source, so charts/tables/stats don't need to know where the data came from.
+- `useDataSource` treats a `map-layer` source as "not ready" until its map panel has registered
+  (a map panel mounts and loads asynchronously), so panels show a loading state instead of
+  erroring while the map is still starting up.
+- `MapPanel` currently registers a stub handle with an empty layer list (no real GeoView
+  integration yet) purely to exercise this registration lifecycle end-to-end.
+
 - **Auth**: per-source auth block (`none` for v1; token-based auth deferred until a real source
   needs it — don't build speculative auth flows).
 
@@ -173,9 +219,93 @@ Built-in **edit mode** in the same viewer app (not a separate builder app):
 
 ## 9. Open questions (not blocking, but need answers before implementation of that area)
 
-- Exact GeoView core package name/version to depend on, and which parts of its config are
-  reusable as-is for the `map` panel type.
-- Chart library final pick (ECharts vs Vega-Lite) — decide when building the `chart` panel.
+- ~~Exact GeoView core package name/version to depend on~~ — resolved, see section 10.
+- How GeoView actually exposes layer type/geometry so `MapPanel` can compute each layer's
+  `queryable` flag for real (today it's derived from `layer.getQueryable()`, which reflects
+  GeoView's own broader definition, not specifically "vector with readable features").
+- Exact shape of `TypeFieldEntry` inside a feature's `fieldInfo` beyond `.value` — revisit if
+  flattened data source records look wrong once tested against a layer with real data.
+- Whether `map-layer` sources should eventually live-update on map events (feature edits, layer
+  reload) instead of only refetching on demand like other sources.
+- ~~Chart library final pick~~ — resolved: `chart.js` + `react-chartjs-2`, see section 11.
 - Where CORS/auth for `rest-json` sources gets handled when the target API doesn't allow
   browser-side calls (proxy? documented author requirement?).
 - Versioning/migration strategy for the config schema as it evolves.
+
+## 10. GeoView integration (verified against Canadian-Geospatial-Platform/geoview, `develop` branch)
+
+`MapPanel` loads the real GeoView bundle and creates a real map — this was tested live against
+the actual CDN script, not just inferred from docs.
+
+- **Script**: `https://canadian-geospatial-platform.github.io/geoview/public/cgpv-main.js`,
+  loaded once lazily via `src/geoview/loadCgpv.ts` (injects a `<script>` tag, resolves once
+  `window.cgpv` exists).
+- **Map creation**: uses `cgpv.api.createMapFromConfigFast(divId, JSON.stringify(config), height?)`
+  — **not** the `class="geoview-map"` + `data-config`/`data-config-url` + `cgpv.init()` DOM-scan
+  approach. The function-call path creates one specific map by div id directly, which fits a
+  React-mounted panel much better: no DOM-scan timing/MutationObserver dance, and we get the
+  `MapViewer` instance straight back from the promise instead of relying on the global
+  `cgpv.onMapReady`/`onMapInit` callbacks (which really are single-slot globals — confirmed in
+  `app.tsx` — but irrelevant here since we never use them; the *per-instance*
+  `mapViewer.onMapReady()` is proper pub/sub, in case it's needed later).
+- **Map config shape**: the top-level object passed to `createMapFromConfigFast` must have a
+  `map` key; `map.basemapOptions` requires `basemapId`, `shaded`, **and** `labeled` (confirmed via
+  the live schema validator's own error messages, not the — slightly stale — docs example).
+- **Div lifecycle**: the map's `<div>` uses a **stable id derived from `panel.id`**
+  (`geoview-map-${panel.id}`), not a freshly-generated id per mount. A stable id matters because
+  `panel.id` is also how the app's own map registry (section 5) addresses a map — if the
+  dashboard ever supports multiple concurrent map panels, or a future interaction needs to
+  reference one specific map by name (e.g. "zoom map A from this button"), a churning id would
+  silently orphan that reference across a remount. GeoView's `layerController`/
+  `layerSetController`/etc. are all scoped to one specific `MapViewer` — there's no implicit
+  "current map" — so any cross-map interaction must carry a stable id (or `panel.id`, via the
+  registry) alongside every action, never assume a single map.
+  - The catch: GeoView map ids must be unique *at any given moment*, and React 18 StrictMode
+    double-invokes this effect in dev (mount → cleanup → mount again) — reusing the same id
+    immediately would collide (`MapViewerAlreadyExistsError` / `InitMapWrongCallError`) if the
+    two calls raced. Fixed by serializing create/delete calls per id through
+    `src/geoview/mapLifecycle.ts` (`runMapLifecycleStep`): each step waits for the previous one
+    for that id to fully settle before running, so the throwaway StrictMode mount's create+delete
+    always finishes before the real mount's create begins, even though both use the same id.
+- **Cleanup**: `cgpv.api.deleteMapViewer(divId, true)` on unmount, and also on a failed creation
+  attempt (GeoView can partially register a MapViewer before failing config validation, which
+  would otherwise collide with a retry using the same id).
+- **Reading layer data**: `mapViewer.layer.allFeatureInfoLayerSet.queryLayer(layerPath)` — the
+  same mechanism backing GeoView's own Data Table — returns `{ results: TypeFeatureInfoEntry[] }`
+  with per-field data under `entry.fieldInfo[fieldName].value`. Layers that can't produce a full
+  feature list (raster/WMS) throw `NotImplementedError` here, so there's no need for a separate
+  vector-type pre-check — attempting the query is itself the eligibility check.
+- **Map ↔ dashboard bridge**: `src/geoview/mapHandleAdapter.ts` implements the app's generic
+  `DashboardMapHandle` contract (section 5) against the real `MapViewer`, so `mapLayerSource.ts`
+  and the rest of the data-source layer stay GeoView-agnostic.
+
+## 11. Table and chart libraries (matched to what GeoView itself uses)
+
+For both the `table` and `chart` panels, we checked what GeoView's own equivalents
+(`geoview-core`'s data table, `geoview-geochart`) are built on, and matched versions where it made
+sense, rather than picking arbitrarily:
+
+- **Table**: `material-react-table` (pinned to `^3.2.1`, the exact version `geoview-core` uses,
+  confirmed compatible with our existing MUI v9 + React 19). `TablePanel` derives columns
+  dynamically from the first data row; object-valued cells (e.g. `address`/`company`) are
+  `JSON.stringify`'d since a raw object can't be rendered as a React child. It already ships a
+  fullscreen toggle, search, sort, and column visibility out of the box — so `PanelContainer`'s
+  own fullscreen action is disabled (`expandable={false}`) for this panel to avoid a duplicate.
+- **Chart**: `chart.js` + `react-chartjs-2` (pinned to `4.5.1` / `5.3.1`, matching
+  `geoview-geochart`'s own dependency versions) — **not** GeoView's own `geochart` wrapper
+  package, which bundles a lot of GeoView-specific schema/store coupling (layer paths, Zustand
+  state, a custom config schema) that doesn't apply to a generic dashboard panel. Chart.js itself
+  was chosen over D3 because it has bar/line/pie/scatter built in out of the box, matching
+  `ChartPanelConfig.chartType` directly, versus D3 requiring each chart type to be hand-built from
+  primitives.
+  - `bar`/`line`/`pie` share one code path: labels come from the first string-typed field in the
+    data, values from the first numeric-typed field (falls back to counting `1` per row if there
+    isn't one) — there's no groupBy/aggregate query layer yet (see section 9), so this is a
+    reasonable default until one exists, not a real aggregation.
+  - `scatter` needs two numeric fields (x/y); shows an explicit "not enough numeric fields"
+    message if the data doesn't have them, rather than guessing.
+  - `histogram` is treated as an alias for `bar` for now (no real binning yet) — flagged with a
+    TODO rather than left unhandled.
+  - Clicking a chart element calls `onSelect(rows[elements[0].index])` via Chart.js's `onClick`
+    handler, feeding the same linking-channel mechanism as before (verified live: clicking a bar
+    updates the linked `TablePanel`'s "Linked selection" text).

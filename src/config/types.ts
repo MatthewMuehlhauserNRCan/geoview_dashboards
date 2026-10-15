@@ -108,7 +108,17 @@ export interface StaticFileDataSourceConfig {
   url: string;
 }
 
-export type DataSourceConfig = RestJsonDataSourceConfig | StaticFileDataSourceConfig;
+// Reads features from a vector layer already loaded in one of the dashboard's own map panels,
+// instead of fetching from an external source.
+export interface MapLayerDataSourceConfig {
+  id: string;
+  type: 'map-layer';
+  mapPanelId: string;
+  layerId: string;
+}
+
+export type DataSourceConfig = RestJsonDataSourceConfig | StaticFileDataSourceConfig | MapLayerDataSourceConfig;
+
 
 export interface LinkingChannel {
   id: string;
@@ -121,9 +131,14 @@ export interface LinkingConfig {
 }
 
 export interface GridConfig {
-  // fixed grid that always fills the viewport (e.g. 3x3, 4x4) - not a free-resize layout
+  // fixed grid that always fills the viewport (e.g. 3x3, 4x4); track sizes are draggable at
+  // runtime, but the grid itself always fills 100% - no leftover space, no page scroll.
   columns: number;
   rows: number;
+  // relative size weights (like CSS fr units) per column/row; defaults to equal sizes.
+  // starting point only - a viewer's live drag-resize doesn't write back into this config.
+  columnSizes?: number[];
+  rowSizes?: number[];
   // named preset used only by the editor to pre-fill columns/rows/panels
   template?: string;
 }
