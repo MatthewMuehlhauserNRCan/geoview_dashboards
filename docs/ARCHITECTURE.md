@@ -358,6 +358,41 @@ sense, rather than picking arbitrarily:
   was chosen over D3 because it has bar/line/pie/scatter built in out of the box, matching
   `ChartPanelConfig.chartType` directly, versus D3 requiring each chart type to be hand-built from
   primitives.
+
+## 12. Theming (colors only, v1)
+
+Deliberately scoped small: colors only (no typography/dark-mode/per-panel-type overrides yet).
+Implemented via MUI's own theming system rather than physically relocating every component's
+`sx` prop into separate files — most of the app already references theme-relative palette tokens
+(`primary.main`, `background.paper`, `divider`, etc.) instead of hardcoded colors, so providing a
+custom theme re-skins the whole dashboard without touching individual components.
+
+- `DashboardConfig.theme?: DashboardThemeConfig` (`config/types.ts`/`schema.ts`) — four optional
+  CSS color strings: `primaryColor`, `secondaryColor`, `backgroundColor` (page backdrop behind the
+  grid), `paperColor` (panel/card surfaces). Dashboard-wide, like `titleElement` — not authored
+  per-page. Any omitted field falls back to MUI's own default palette.
+- `src/theme/createDashboardTheme.ts` builds an MUI `Theme` from that config via `createTheme`.
+  `DashboardApp.tsx` wraps its render in `<ThemeProvider theme={...}>` (memoized on
+  `config.theme`). The **editor's own UI chrome is NOT themed by this** — it's a tool for
+  authoring the config, not a live preview of the final look, so its own buttons/dialogs always
+  stay default MUI regardless of what theme is being authored.
+- A handful of genuinely hardcoded (non-theme-aware) colors were fixed to track the theme instead:
+  `App.css`'s grid-divider colors (bridged into plain CSS via a `<GlobalStyles>` block setting
+  CSS custom properties, since `ThemeProvider` only reaches MUI/`sx`-driven components, not plain
+  CSS files — same fallback values as before, so an unconfigured theme is pixel-identical to
+  before this existed), `DashboardApp.tsx`'s outer border, `FooterElement.tsx`'s top border,
+  `TitlePanel.tsx`'s default text color, `MapPanel.tsx`'s container border (via `useTheme()`,
+  since that's a plain inline `style`, not `sx`), and `ChartPanel.tsx`'s default/selected bar
+  colors (via `useTheme()` + MUI's `alpha()` helper).
+- Editor authoring: `src/editor/ThemeForm.tsx` (4 plain text fields, not a color-swatch picker —
+  consistent with how `TitleElementForm`/`TitlePanelForm` already handle `backgroundColor`),
+  opened via a new "Theme" button in `EditorApp`'s top toolbar. No live preview of the theme
+  inside the editor yet (`GridEditor` is a schematic editing view, not a real render of the
+  panels) — an author needs to Export and open the config in the actual viewer to see the result.
+- Verified live: setting a custom `primaryColor`/`backgroundColor` correctly re-skinned the
+  `TitleElement` AppBar, `TitlePanel` strip, selected tab color (`Users` tab panel), and footer
+  page-tab indicator, with zero changes needed to those components beyond the earlier hardcoded-
+  color fixes above.
   - `bar`/`line`/`pie` share one code path: labels come from the first string-typed field in the
     data, values from the first numeric-typed field (falls back to counting `1` per row if there
     isn't one) — there's no groupBy/aggregate query layer yet (see section 9), so this is a

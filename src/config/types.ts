@@ -180,6 +180,25 @@ export interface DashboardPageConfig {
   panels: GridPanel[];
 }
 
+// Colors only for v1 - every field is optional CSS color string; an omitted field falls back to
+// MUI's own default palette, so an unconfigured dashboard looks exactly like it did before this
+// existed. Drives an MUI theme (src/theme/createDashboardTheme.ts) rather than overriding
+// individual component styles - most of the app already references theme-relative palette
+// tokens (`primary.main`, `background.paper`, etc.), so this re-skins the whole dashboard
+// without touching per-panel styling.
+export interface DashboardThemeConfig {
+  primaryColor?: string;
+  secondaryColor?: string;
+  // page backdrop behind the grid (MUI's palette.background.default)
+  backgroundColor?: string;
+  // panel/card surfaces (MUI's palette.background.paper)
+  paperColor?: string;
+  // Main text color (MUI's palette.text.primary). If omitted but `backgroundColor`/`paperColor`
+  // is customized, a readable black/white is picked automatically based on contrast - this only
+  // needs to be set explicitly to override that automatic choice.
+  textColor?: string;
+}
+
 export interface DashboardConfig {
   id: string;
   title: string;
@@ -187,6 +206,8 @@ export interface DashboardConfig {
   // of `panels` never has to account for it) - see src/title/. Shared across every page, unlike
   // `titlePanel` which is authored per-page (DashboardPageConfig.titlePanel).
   titleElement?: TitleElementConfig;
+  // Dashboard-wide, like `titleElement` - not authored per-page.
+  theme?: DashboardThemeConfig;
   pages: DashboardPageConfig[];
   dataSources: DataSourceConfig[];
   linking?: LinkingConfig;

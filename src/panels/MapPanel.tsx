@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTheme } from '@mui/material/styles';
 import type { MapPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useMapRegistryStore } from '../map/registry';
@@ -13,6 +14,7 @@ interface MapPanelProps {
 
 export function MapPanel({ panel }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const theme = useTheme();
   const mapViewerRef = useRef<MapViewer | null>(null);
   const registerMap = useMapRegistryStore((state) => state.registerMap);
   const unregisterMap = useMapRegistryStore((state) => state.unregisterMap);
@@ -87,7 +89,10 @@ export function MapPanel({ panel }: MapPanelProps) {
       {/* box-sizing: border-box keeps this div's total footprint at exactly 100% of its parent
           Cell even with the border added (otherwise the border would add 2px on top of 100%,
           overflowing the Cell) - the map then renders just inside the border, not under it. */}
-      <div ref={containerRef} style={{ width: '100%', height: '100%', border: '1px solid gray', boxSizing: 'border-box' }} />
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%', border: `1px solid ${theme.palette.divider}`, boxSizing: 'border-box' }}
+      />
     </PanelContainer>
   );
 }

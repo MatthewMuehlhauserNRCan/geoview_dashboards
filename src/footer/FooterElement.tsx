@@ -14,7 +14,7 @@ export function FooterElement({ pages, activePageId, onChange }: FooterElementPr
     <Tabs
       value={activePageId}
       onChange={(_event, value: string) => onChange(value)}
-      sx={{ flex: '0 0 auto', minHeight: 0, bgcolor: 'background.paper', borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}
+      sx={{ flex: '0 0 auto', minHeight: 0, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}
     >
       {pages.map((page) => (
         <Tab key={page.id} value={page.id} label={page.label} sx={{ minHeight: 40, py: 1 }} />

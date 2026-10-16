@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { DashboardConfig, DataSourceConfig, GridConfig, GridPanel, LinkingChannel, PanelLayout, TitleElementConfig, TitlePanelConfig } from '../config/types';
+import type {
+  DashboardConfig,
+  DashboardThemeConfig,
+  DataSourceConfig,
+  GridConfig,
+  GridPanel,
+  LinkingChannel,
+  PanelLayout,
+  TitleElementConfig,
+  TitlePanelConfig,
+} from '../config/types';
 import { generateId } from './idUtils';
 
 export const BLANK_CONFIG: DashboardConfig = {
@@ -27,6 +37,7 @@ interface EditorState {
   updateMeta: (fields: Partial<Pick<DashboardConfig, 'id' | 'title'>>) => void;
   setTitleElement: (titleElement: TitleElementConfig | undefined) => void;
   setTitlePanel: (pageId: string, titlePanel: TitlePanelConfig | undefined) => void;
+  setTheme: (theme: DashboardThemeConfig | undefined) => void;
 
   addPage: () => void;
   renamePage: (pageId: string, label: string) => void;
@@ -67,6 +78,7 @@ export const useEditorStore = create<EditorState>()(
         set((state) => ({
           config: { ...state.config, pages: state.config.pages.map((p) => (p.id === pageId ? { ...p, titlePanel } : p)) },
         })),
+      setTheme: (theme) => set((state) => ({ config: { ...state.config, theme } })),
 
       addPage: () =>
         set((state) => {

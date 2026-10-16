@@ -216,10 +216,19 @@ const dashboardPageSchema = z.object({
   panels: z.array(gridPanelSchema),
 });
 
+const dashboardThemeSchema = z.object({
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  paperColor: z.string().optional(),
+  textColor: z.string().optional(),
+});
+
 export const dashboardConfigSchema = z.object({
   id: z.string(),
   title: z.string(),
   titleElement: titleElementSchema.optional(),
+  theme: dashboardThemeSchema.optional(),
   pages: z.array(dashboardPageSchema),
   dataSources: z.array(dataSourceSchema),
   linking: linkingSchema.optional(),

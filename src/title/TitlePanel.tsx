@@ -15,7 +15,7 @@ export function TitlePanel({ config }: TitlePanelProps) {
 
   return (
     <Box ref={containerRef} sx={{ flex: '0 0 auto', width: '100%', display: 'flex', flexDirection: 'column' }} style={{ height }}>
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', width: '100%', bgcolor: background, color: '#fff' }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', width: '100%', bgcolor: background, color: 'primary.contrastText' }}>
         <Box sx={{ flex: 1, minWidth: 0, px: 2 }}>{config.left}</Box>
         {config.image && (
           <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', px: 2 }}>

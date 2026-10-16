@@ -24,6 +24,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
+import PaletteIcon from '@mui/icons-material/Palette';
 import type { PanelConfig } from '../config/types';
 import { dashboardConfigSchema } from '../config/schema';
 import { AddPanelDialog } from './AddPanelDialog';
@@ -32,6 +33,7 @@ import { GridEditor } from './GridEditor';
 import { LinkingPanel } from './LinkingPanel';
 import { MapPreview, useMapPanels } from './MapPreview';
 import { PanelInspector } from './PanelInspector';
+import { ThemeForm } from './ThemeForm';
 import { TitleElementForm } from './TitleElementForm';
 import { TitlePanelForm } from './TitlePanelForm';
 import { createDefaultPanel } from './panelDefaults';
@@ -50,6 +52,7 @@ export function EditorApp() {
   const updateMeta = useEditorStore((s) => s.updateMeta);
   const setTitleElement = useEditorStore((s) => s.setTitleElement);
   const setTitlePanel = useEditorStore((s) => s.setTitlePanel);
+  const setTheme = useEditorStore((s) => s.setTheme);
   const loadConfig = useEditorStore((s) => s.loadConfig);
   const resetConfig = useEditorStore((s) => s.resetConfig);
 
@@ -61,6 +64,7 @@ export function EditorApp() {
   const [addAt, setAddAt] = useState<{ col: number; row: number } | undefined>();
   const [errors, setErrors] = useState<string[] | undefined>();
   const [headerDialogOpen, setHeaderDialogOpen] = useState(false);
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handlePick = (type: PanelConfig['type']) => {
@@ -112,6 +116,9 @@ export function EditorApp() {
           />
           <TextField size="small" label="Dashboard id" value={config.id} onChange={(e) => updateMeta({ id: e.target.value })} />
           <Box sx={{ flex: 1 }} />
+          <Button size="small" startIcon={<PaletteIcon />} onClick={() => setThemeDialogOpen(true)}>
+            Theme
+          </Button>
           <Button size="small" startIcon={<ViewHeadlineIcon />} onClick={() => setHeaderDialogOpen(true)}>
             Header
           </Button>
@@ -238,6 +245,16 @@ export function EditorApp() {
       </Box>
 
       <AddPanelDialog open={!!addAt} onClose={() => setAddAt(undefined)} onPick={handlePick} />
+
+      <Dialog open={themeDialogOpen} onClose={() => setThemeDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Theme colors</DialogTitle>
+        <DialogContent>
+          <ThemeForm value={config.theme} onChange={setTheme} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setThemeDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={headerDialogOpen} onClose={() => setHeaderDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Dashboard header</DialogTitle>

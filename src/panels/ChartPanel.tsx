@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { alpha, useTheme } from '@mui/material/styles';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -30,6 +31,11 @@ interface ChartPanelProps {
 type Row = Record<string, unknown>;
 
 export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
+  const theme = useTheme();
+  // Highlights the bar/slice matching the shared filter channel's current selection for this
+  // chart's own field - derived from the theme so a custom theme's colors show through here too.
+  const defaultColor = alpha(theme.palette.primary.main, 0.5);
+  const selectedColor = alpha(theme.palette.warning.main, 0.9);
   const { data, isLoading, error } = useDataSource(panel.dataSource, dataSources);
   const channel = panel.interactions?.emits?.[0] ?? panel.interactions?.listensTo?.[0] ?? '';
   const rawFilterValue = useListenChannel(channel);
@@ -92,7 +98,7 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
           {
             label: panel.title ?? groupByField,
             data: grouped.counts,
-            backgroundColor: grouped.labels.map((label) => (selectedValues.includes(label) ? SELECTED_COLOR : DEFAULT_COLOR)),
+            backgroundColor: grouped.labels.map((label) => (selectedValues.includes(label) ? selectedColor : defaultColor)),
           },
         ],
       }
@@ -115,12 +121,6 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
     </PanelContainer>
   );
 }
-
-// Highlights the bar/slice matching the shared filter channel's current selection for this
-// chart's own field - derived from that channel (not local state), so the highlight survives a
-// tab switch unmounting and remounting this component.
-const DEFAULT_COLOR = 'rgba(25, 118, 210, 0.5)';
-const SELECTED_COLOR = 'rgba(245, 124, 0, 0.9)';
 
 // Counts rows per distinct value of `field` - the data behind a categorical bar/pie chart.
 function groupCounts(rows: Row[], field: string): { labels: string[]; counts: number[] } {
