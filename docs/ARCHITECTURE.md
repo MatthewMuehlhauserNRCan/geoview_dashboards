@@ -154,8 +154,9 @@ on a live, publicly-viewable dashboard — so authoring is instead a **completel
 not reachable from (or shipped with) the end-viewer dashboard:
 
 - Separate Vite multi-page entry: `editor.html` → `src/editor/main.tsx` → `EditorApp`, built as
-  its own bundle alongside the viewer's `index.html`/`main.tsx` (`vite.config.ts`'s
-  `build.rollupOptions.input` lists both). The viewer never imports anything from `src/editor/`.
+  its own bundle alongside the viewer's `example.html`/`main.tsx` (`vite.config.ts`'s
+  `build.rollupOptions.input` lists both, plus a third plain static `index.html` landing page —
+  see "GitHub Pages hosting" below). The viewer never imports anything from `src/editor/`.
   `src/editor/EditModeApp.tsx` (the original in-viewer stub) was deleted.
 - Still WYSIWYG-ish: the editor reuses real runtime pieces where it matters most (notably
   `MapPanel`/the map registry, for live layer discovery — see below) rather than hand-rolling a
@@ -187,6 +188,23 @@ not reachable from (or shipped with) the end-viewer dashboard:
 - Not yet covered by the editor UI (schema already supports these, just no form yet - add if
   asked): `titleElement`/`titlePanel`/footer authoring, and no overlap-prevention when manually
   moving/resizing panels (same permissiveness as hand-authoring raw JSON today).
+
+**GitHub Pages hosting (2026-10-16)**: `dist/` is published to GitHub Pages (project page at
+`https://<owner>.github.io/geoview_dashboards/`, repo isn't gitignore-committing `dist/` itself -
+see `.github/workflows/deploy-pages.yml`, which builds on every push to `main` and deploys via
+the official `actions/configure-pages`/`upload-pages-artifact`/`deploy-pages` actions - requires
+the repo's Settings → Pages → Source set to "GitHub Actions", a one-time manual step). Three
+pages are built and published together:
+- `index.html` — a small static (non-React) landing page linking to the other two.
+- `example.html` — the end-viewer example dashboard (this used to be `index.html`; renamed so
+  the landing page could take that slot instead, since GitHub Pages serves `index.html` by
+  default at a directory's root).
+- `editor.html` — the authoring tool, unchanged otherwise.
+`vite.config.ts`'s `base` is conditionally `/geoview_dashboards/` only during `vite build`
+(kept `/` for local dev) since this is a project page under a subpath, not a custom domain -
+every built asset reference needs that prefix or it 404s once deployed. HTML `<link rel="icon">`
+tags use Vite's `%BASE_URL%` placeholder rather than a hardcoded `/favicon.svg` for the same
+reason. `public/.nojekyll` was added so GitHub Pages doesn't run the output through Jekyll.
 
 ## 8. Config schema (draft — will evolve)
 

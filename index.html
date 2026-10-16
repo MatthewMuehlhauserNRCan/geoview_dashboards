@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GeoView Dashboards</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+        background: #f5f5f5;
+        color: #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+      main {
+        max-width: 640px;
+        padding: 2rem;
+        text-align: center;
+      }
+      h1 {
+        margin-bottom: 0.25rem;
+      }
+      p.subtitle {
+        color: #555;
+        margin-top: 0;
+      }
+      .links {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+      }
+      a.card {
+        display: block;
+        width: 220px;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #d1d1d1;
+        background: #fff;
+        text-decoration: none;
+        color: inherit;
+        transition: box-shadow 0.15s ease;
+      }
+      a.card:hover {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+      }
+      a.card h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+      }
+      a.card p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>GeoView Dashboards</h1>
+      <p class="subtitle">Embeddable, config-driven dashboards built on the GeoView viewer.</p>
+      <div class="links">
+        <a class="card" href="./example.html">
+          <h2>Example Dashboard</h2>
+          <p>A live sample dashboard - also usable as a starting template.</p>
+        </a>
+        <a class="card" href="./editor.html">
+          <h2>Editor</h2>
+          <p>The authoring tool for building and exporting a dashboard config.</p>
+        </a>
+      </div>
+    </main>
+  </body>
+</html>
