@@ -42,6 +42,11 @@ export interface StatPanelConfig extends BasePanelConfig {
 
 export interface TablePanelConfig extends BasePanelConfig {
   type: 'table';
+  // Shows/hides the "zoom to feature" row action (only possible when `dataSource` is a
+  // `map-layer` source with an identifiable id field) - auto-detected when omitted. It's an
+  // all-or-nothing, layer-level thing (not checked per row): either every row gets the action or
+  // none do, since a layer's rows all share the same schema.
+  showZoomToFeature?: boolean;
 }
 
 export interface LegendPanelConfig extends BasePanelConfig {

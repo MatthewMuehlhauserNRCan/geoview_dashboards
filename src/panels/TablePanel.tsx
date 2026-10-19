@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
 import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
+import { IconButton, Tooltip } from '@mui/material';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import type { TablePanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels } from '../linking/useChannel';
 import { rowMatchesFieldFilter } from '../linking/rowFilter';
+import { useMapHandle } from '../map/registry';
 
 interface TablePanelProps {
   panel: TablePanelConfig;
@@ -15,6 +18,13 @@ type Row = Record<string, unknown>;
 
 export function TablePanel({ panel, dataSources }: TablePanelProps) {
   const { data, isLoading, error } = useDataSource(panel.dataSource, dataSources);
+  // Only a "map-layer" source has a real map feature behind each row to zoom to/highlight.
+  const sourceConfig = dataSources.find((source) => source.id === panel.dataSource);
+  const isMapLayerSource = sourceConfig?.type === 'map-layer';
+  const mapHandle = useMapHandle(isMapLayerSource ? sourceConfig.mapPanelId : '');
+  const layerId = isMapLayerSource ? sourceConfig.layerId : undefined;
+  // All-or-nothing per layer (not per row) - auto-detected unless the author overrides it.
+  const canZoomToFeature = Boolean(mapHandle && layerId) && (panel.showZoomToFeature ?? mapHandle!.canZoomToFeature(layerId!));
   // Merges every listened channel (e.g. a shared filter panel's channel AND a legend's own,
   // separate channel) into one combined filter, so this table reacts to all of them at once.
   const filterValue = useListenChannels(panel.interactions?.listensTo ?? []);
@@ -43,6 +53,21 @@ export function TablePanel({ panel, dataSources }: TablePanelProps) {
         initialState={{ density: 'compact' }}
         muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
         muiTableContainerProps={{ sx: { flex: 1 } }}
+        // Same "zoom to feature" affordance GeoView's own data table has (zooms the map to the
+        // feature's extent and highlights it) - all-or-nothing for the whole layer, not a per-row
+        // check, since every row of a layer shares the same schema.
+        {...(canZoomToFeature && {
+          enableRowActions: true,
+          positionActionsColumn: 'first',
+          displayColumnDefOptions: { 'mrt-row-actions': { header: '', size: 50, grow: false } },
+          renderRowActions: ({ row }: { row: { original: Row } }) => (
+            <Tooltip title="Zoom to feature">
+              <IconButton size="small" color="primary" onClick={() => void mapHandle!.zoomToFeature(layerId!, row.original)}>
+                <ZoomInIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ),
+        })}
       />
     </PanelContainer>
   );

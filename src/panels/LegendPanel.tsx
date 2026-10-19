@@ -144,8 +144,10 @@ interface LegendRowProps {
 }
 
 // Matches GeoView's own legend styling (packages/geoview-core/.../legend-layer-items.tsx): no
-// checkbox - a colored left bar (green = checked, grey = unchecked) plus italic text for the
-// unchecked state, instead of a MUI Checkbox control.
+// checkbox - a colored left bar (theme primary = checked, grey = unchecked) plus italic text for
+// the unchecked state, instead of a MUI Checkbox control. GeoView itself uses a custom green-ish
+// palette extension this app doesn't have - substituted the theme's own primary color instead, so
+// a custom-themed dashboard's legend matches its own color scheme rather than a hardcoded green.
 function LegendRow({ label, visible, onClick, header = false, icon, indent = false }: LegendRowProps) {
   return (
     <ListItemButton
@@ -155,7 +157,7 @@ function LegendRow({ label, visible, onClick, header = false, icon, indent = fal
       sx={{
         pl: indent ? 4 : 2,
         borderLeft: '5px solid',
-        borderColor: visible ? 'success.main' : 'grey.400',
+        borderColor: visible ? 'primary.main' : 'grey.400',
         ...(header && { bgcolor: 'action.hover' }),
       }}
     >

@@ -219,6 +219,27 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
         </Stack>
       )}
 
+      {leafPanel.type === 'table' && (
+        <FormControl size="small" fullWidth>
+          <InputLabel>Zoom to feature row action</InputLabel>
+          <Select
+            label="Zoom to feature row action"
+            value={leafPanel.showZoomToFeature === undefined ? 'auto' : leafPanel.showZoomToFeature ? 'show' : 'hide'}
+            onChange={(e) =>
+              onChange((p) =>
+                p.type === 'table'
+                  ? { ...p, showZoomToFeature: e.target.value === 'auto' ? undefined : e.target.value === 'show' }
+                  : p,
+              )
+            }
+          >
+            <MenuItem value="auto">Auto-detect (only shown when the map layer supports it)</MenuItem>
+            <MenuItem value="show">Always show</MenuItem>
+            <MenuItem value="hide">Always hide</MenuItem>
+          </Select>
+        </FormControl>
+      )}
+
       {leafPanel.type === 'filter' && (
         <Stack spacing={1}>
           <Typography variant="subtitle2">Fields (requires a map-layer data source)</Typography>

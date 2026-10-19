@@ -209,6 +209,30 @@ the dashboard's own map panels, instead of making a separate network request:
     filter auto-unchecking the matching legend item) is NOT done — flagged as real added
     complexity, deferred until asked for.
 
+- **Table → map "zoom to feature"** (2026-10-19): `TablePanel` gets a pinned "zoom" row-action
+  icon button (same idea as GeoView's own data table, researched directly from its real source
+  rather than guessed) — but ONLY when its `dataSource` is a `map-layer` type (there's a real map
+  feature behind each row only then). Clicking it zooms the map to that feature's extent and
+  highlights it, mirroring GeoView's own combined zoom+highlight action
+  (`zoomToExtentRestrictedAndHighlight`) rather than inventing a separate highlight-only toggle
+  GeoView itself doesn't have.
+  - `getLayerFeatures()` previously discarded everything from `TypeFeatureInfoEntry` except each
+    field's display `.value` (via `flattenFieldInfo`) — the real feature (carrying `.extent`,
+    `.uid`, `.geometry`) is now ALSO kept in a `WeakMap<row, TypeFeatureInfoEntry>` inside
+    `mapHandleAdapter.ts`, keyed by the flattened row's own object identity, so no fake extra
+    column/field needs to leak into the row shape every other panel (chart/stat/table) already
+    assumes is just plain data.
+  - `DashboardMapHandle` gained `canZoomToFeature(row)`/`zoomToFeature(row): Promise<void>` — both
+    take the row itself (not a separate layerId/id pair); `row` MUST be the exact object instance
+    `getLayerFeatures()` returned (a copy misses the WeakMap entry and silently no-ops).
+    Implemented via `MapViewer`'s own direct public surface (`mapViewer.zoomToExtent(extent)`,
+    `mapViewer.featureHighlight.{highlightFeature, removeHighlight, highlightGeolocatorBBox}`) —
+    not the internal `mapViewer.controllers.*` path GeoView's own source uses, which its own
+    `.d.ts` comments say to avoid as an external consumer.
+  - Deliberately NOT replicated (scoped down from GeoView's full feature): the OID-based extent
+    fallback for geometry-less queries, GeoView's "details" button/modal (no equivalent view
+    here), the click-marker pin, and visible-scale-range zoom clamping.
+
 - The `map-layer` provider looks up the map by id, finds the layer, rejects non-queryable layers
   with a clear error, then calls `getLayerFeatures` — returning the same record shape as any
   other data source, so charts/tables/stats don't need to know where the data came from.

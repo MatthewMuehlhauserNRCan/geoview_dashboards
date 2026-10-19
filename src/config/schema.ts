@@ -37,7 +37,7 @@ const chartPanelFields = z.object({
 
 const statPanelFields = z.object({ ...baseFields, type: z.literal('stat') });
 
-const tablePanelFields = z.object({ ...baseFields, type: z.literal('table') });
+const tablePanelFields = z.object({ ...baseFields, type: z.literal('table'), showZoomToFeature: z.boolean().optional() });
 
 const legendPanelFields = z.object({
   ...baseFields,

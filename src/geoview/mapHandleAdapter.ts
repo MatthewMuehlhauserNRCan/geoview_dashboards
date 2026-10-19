@@ -7,6 +7,11 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
   // `setItemVisibility` requires (geometryType etc.), from just the item name `getMapLegend()`
   // already handed out.
   const legendItemsByLayer = new Map<string, TypeLegendItem[]>();
+  // Keyed by layer path - the field name GeoView marks as this layer's object-id field (if any),
+  // found once from a queried feature's `fieldInfo`. Lets `zoomToFeature`/`canZoomToFeature` find
+  // a row's real feature by that field's VALUE (itself one of the row's own plain values) rather
+  // than by object identity, which breaks across refetches/HMR/stale caches.
+  const oidFieldByLayer = new Map<string, string>();
 
   return {
     listLayers(): DashboardMapLayerInfo[] {
@@ -26,6 +31,12 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
       // GeoView itself rejects layers that can't produce a feature list (e.g. raster/WMS layers
       // throw NotImplementedError here), so no separate vector-type check is needed on our side.
       const result = await mapViewer.layer.allFeatureInfoLayerSet.queryLayer(layerPath);
+      if (!oidFieldByLayer.has(layerPath)) {
+        const oidField = Object.keys(result.results[0]?.fieldInfo ?? {}).find(
+          (key) => result.results[0].fieldInfo[key]?.dataType === 'oid',
+        );
+        if (oidField) oidFieldByLayer.set(layerPath, oidField);
+      }
       return result.results.map(flattenFieldInfo);
     },
     setLayerFilter(layerPath: string, expression: string | undefined) {
@@ -81,6 +92,43 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
     setLegendItemVisible(layerPath: string, itemName: string, visible: boolean) {
       const item = legendItemsByLayer.get(layerPath)?.find((candidate) => candidate.name === itemName);
       if (item) void mapViewer.layer.setItemVisibility(layerPath, item, visible, false);
+    },
+    canZoomToFeature(layerPath: string) {
+      return oidFieldByLayer.has(layerPath);
+    },
+    async zoomToFeature(layerPath: string, row: Record<string, unknown>) {
+      const oidField = oidFieldByLayer.get(layerPath);
+      const oidValue = oidField ? row[oidField] : undefined;
+      if (!oidField || typeof oidValue !== 'number') return;
+
+      // Same real API GeoView's own data table uses to resolve a feature's extent by id when a
+      // bulk "all features" query didn't carry geometry (confirmed via its real source).
+      const extent = await mapViewer.layer
+        .getGeoviewLayerRegularIfExists(layerPath)
+        ?.getExtentFromFeatures([oidValue], mapViewer.getProjection(), oidField)
+        .catch(() => undefined);
+      if (!extent) return;
+
+      const [minX, minY, maxX, maxY] = extent;
+      // A point (or any other single-coordinate geometry) has a zero-area extent - fitting the
+      // view to a literal zero-size box doesn't zoom in meaningfully, so pan to its center and
+      // ensure at least a reasonable zoom level instead.
+      if (minX === maxX && minY === maxY) {
+        const MIN_POINT_ZOOM = 8;
+        // GeoView's own `mapViewer.setCenter()` expects lon/lat and transforms it into the
+        // view's projection internally (confirmed via its real source) - our extent is already
+        // in the view's projection, so setting the OL View's center directly (no conversion)
+        // is what's actually needed here, not GeoView's lon/lat-expecting wrapper.
+        mapViewer.getView().setCenter([minX, minY]);
+        if ((mapViewer.getView().getZoom() ?? 0) < MIN_POINT_ZOOM) mapViewer.setMapZoomLevel(MIN_POINT_ZOOM);
+      } else {
+        await mapViewer.zoomToExtent(extent);
+      }
+      // Only the extent (not the real geometry) is available from an id-based lookup, so a
+      // persistent per-feature highlight (which needs the actual geometry to draw) isn't
+      // possible here - the bbox flash is the closest meaningful equivalent.
+      mapViewer.featureHighlight.removeHighlight('all');
+      mapViewer.featureHighlight.highlightGeolocatorBBox(extent, false);
     },
   };
 }

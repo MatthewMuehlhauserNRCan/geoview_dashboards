@@ -46,5 +46,13 @@ export interface DashboardMapHandle {
   setLayerVisible(layerId: string, visible: boolean): void;
   // `itemName` must match a `DashboardLegendItem.name` previously returned by `getMapLegend()`.
   setLegendItemVisible(layerId: string, itemName: string, visible: boolean): void;
+  // All-or-nothing per LAYER (not checked per row) - every row of a layer shares the same
+  // schema, so if this layer has an identifiable id field, every one of its rows can be zoomed
+  // to; if it doesn't, none can.
+  canZoomToFeature(layerId: string): boolean;
+  // Zooms to and highlights a single feature on the map, replacing any previous highlight.
+  // `row` is matched back to a real feature by its id field's value (one of `row`'s own plain
+  // values, already present from `getLayerFeatures()`). No-ops if that can't be resolved.
+  zoomToFeature(layerId: string, row: Record<string, unknown>): Promise<void>;
 }
 
