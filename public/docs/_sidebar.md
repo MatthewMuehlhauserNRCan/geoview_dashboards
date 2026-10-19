@@ -1,5 +1,6 @@
 - [Home](/)
 - [Getting Started](guide/getting-started.md)
+- [Embedding in a Web Page](guide/embedding.md)
 - [Pages & Grid](guide/pages-and-grid.md)
 - [Panels](guide/panels.md)
 - [Data Sources](guide/data-sources.md)

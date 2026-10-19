@@ -12,6 +12,7 @@ if you'd rather hand-write/script a config.
 ## Where to start
 
 - [Getting Started](guide/getting-started.md) - the overall shape of a config, and how to load one
+- [Embedding in a Web Page](guide/embedding.md) - adding a dashboard to any HTML page via a script tag
 - [Pages & Grid](guide/pages-and-grid.md) - pages, the grid, and panel placement
 - [Panels](guide/panels.md) - every panel type and its fields
 - [Data Sources](guide/data-sources.md) - where panels get their data

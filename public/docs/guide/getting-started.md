@@ -26,10 +26,12 @@ interface DashboardConfig {
 
 ## Loading a config
 
-The example viewer (`src/app/DashboardApp.tsx`) takes a parsed `DashboardConfig` as a prop and
-renders it. `src/App.tsx` currently loads the bundled `src/app/sampleConfig.ts` for local
-development/the live example - a real embedding would fetch/import its own config and pass it to
-`DashboardApp` the same way.
+For embedding a dashboard in your own web page, see [Embedding in a Web Page](guide/embedding.md)
+- it covers the `GeoViewDashboards.render(elementId, config)` script-tag API end to end.
+
+Internally, the example viewer (`src/app/DashboardApp.tsx`) takes a parsed `DashboardConfig` as a
+prop and renders it - the embed API above is just a thin wrapper around mounting that same
+component into a given element.
 
 Always validate an externally-sourced config through `parseDashboardConfig()` before using it:
 
@@ -40,7 +42,7 @@ const config = parseDashboardConfig(JSON.parse(rawJsonString));
 ```
 
 This throws a descriptive Zod error if the config doesn't match the schema, instead of failing
-confusingly deep inside a component later.
+confusingly deep inside a component later. `GeoViewDashboards.render()` already does this for you.
 
 ## Minimal example
 
