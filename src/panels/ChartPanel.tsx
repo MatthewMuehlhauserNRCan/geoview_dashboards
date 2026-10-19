@@ -18,8 +18,8 @@ import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
 import type { ChartPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
-import { useListenChannel, useSetChannelField } from '../linking/useChannel';
-import { isFieldFilterValue, rowMatchesFieldFilter, type FieldFilterValue } from '../linking/rowFilter';
+import { useListenChannels, useSetChannelField } from '../linking/useChannel';
+import { rowMatchesFieldFilter, type FieldFilterValue } from '../linking/rowFilter';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -37,9 +37,15 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
   const defaultColor = alpha(theme.palette.primary.main, 0.5);
   const selectedColor = alpha(theme.palette.warning.main, 0.9);
   const { data, isLoading, error } = useDataSource(panel.dataSource, dataSources);
+  // The emit channel (its own click-to-select) and any listened channels (e.g. a shared filter
+  // panel's combined selection, or a legend's own separate channel) are merged so this chart
+  // reacts to all of them, even though it only ever emits onto its own single channel.
   const channel = panel.interactions?.emits?.[0] ?? panel.interactions?.listensTo?.[0] ?? '';
-  const rawFilterValue = useListenChannel(channel);
-  const filterValue: FieldFilterValue | undefined = isFieldFilterValue(rawFilterValue) ? rawFilterValue : undefined;
+  const listenChannels = useMemo(
+    () => Array.from(new Set([...(panel.interactions?.emits ?? []), ...(panel.interactions?.listensTo ?? [])])),
+    [panel.interactions?.emits, panel.interactions?.listensTo],
+  );
+  const filterValue = useListenChannels(listenChannels);
   const setField = useSetChannelField(channel);
   const rows = useMemo(() => data ?? [], [data]);
 
@@ -82,7 +88,11 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
               },
             ],
           }}
-          options={{ responsive: true, maintainAspectRatio: false }}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { x: { title: { display: true, text: xKey } }, y: { title: { display: true, text: yKey } } },
+          }}
         />
       </PanelContainer>
     );
@@ -111,7 +121,18 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
           },
         ],
       };
-  const options = { responsive: true, maintainAspectRatio: false, onClick: handleClick };
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    onClick: handleClick,
+    // Pie has no axes - only bar/line/histogram get axis titles (x = the grouped/label field, y = a count).
+    ...(panel.chartType !== 'pie' && {
+      scales: {
+        x: { title: { display: true, text: groupByField ?? labelKey ?? '' } },
+        y: { title: { display: true, text: 'Count' } },
+      },
+    }),
+  };
 
   return (
     <PanelContainer title={panel.title}>

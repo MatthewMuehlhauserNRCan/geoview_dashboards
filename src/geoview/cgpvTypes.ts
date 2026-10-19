@@ -6,8 +6,9 @@
 // compile-time-only `import type`s/re-exports, erased entirely before bundling.
 export type { MapViewer } from 'geoview-core-types/src/geo/map/map-viewer';
 export type { AbstractGVLayer } from 'geoview-core-types/src/geo/layer/gv-layers/abstract-gv-layer';
-export type { TypeFeatureInfoEntry, TypeFeatureInfoResult } from 'geoview-core-types/src/api/types/map-schema-types';
+export type { TypeFeatureInfoEntry, TypeFeatureInfoResult, TypeLayerStyleConfig } from 'geoview-core-types/src/api/types/map-schema-types';
 export type { DomainLayerStatusChangedDelegate } from 'geoview-core-types/src/core/domains/layer-domain';
+export type { TypeLegendItem } from 'geoview-core-types/src/core/components/layers/types';
 // Importing TypeWindow also pulls in geoview-core-types' own `declare global` augmentation of
 // `Window.cgpv`, so this app doesn't need to (re-)declare that global itself.
 export type { TypeWindow } from 'geoview-core-types/src/core/types/global-types';

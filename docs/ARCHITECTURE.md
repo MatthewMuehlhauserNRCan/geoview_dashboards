@@ -121,6 +121,94 @@ the dashboard's own map panels, instead of making a separate network request:
   (returns an unsubscribe function). Each layer reports a `queryable` flag — **only vector layers
   with individually accessible features are queryable**; raster/tile layers (WMS/WMTS/tile)
   report `queryable: false` and can't be used as a data source.
+- **Legend data** (2026-10-19): the `legend` panel (`src/panels/LegendPanel.tsx`) is no longer a
+  placeholder. GeoView ships as one global `<script>` bundle, not an importable React component
+  library, so its own built-in legend UI can't literally be embedded — instead the map handle
+  exposes the underlying legend DATA (`getMapLegend(): Promise<DashboardMapLegendLayer[]>`, each
+  with `{layerId, layerName, visible, items: {name, icon (base64), isVisible}[]}`) and two
+  visibility setters (`setLayerVisible`, `setLegendItemVisible`), backed by GeoView's real
+  `mapViewer.layer.legendsLayerSet` (`queryLegend`/`waitForLegendQueried`) and per-layer
+  `layer.setVisible()`/`mapViewer.layer.setItemVisibility()` APIs — then `LegendPanel` renders its
+  own plain MUI `List`, same "pull real data, render our own UI" pattern as every other panel. It
+  refetches via the already-existing `onLayerLoaded` event (not a new mechanism) whenever a layer
+  finishes loading, since layers can still be loading after the map handle itself first registers.
+  - **Styling** intentionally matches GeoView's own legend (`legend-layer-items.tsx`/
+    `legend-styles.ts`, fetched directly from their repo for reference) instead of a generic MUI
+    checkbox: no checkbox control at all — a colored left border bar (green when checked, grey
+    when unchecked, via our own theme's `success.main`/`grey.400` rather than GeoView's
+    custom-only `geoViewColor` palette extension, which this app doesn't have) plus italic text
+    for the unchecked state. The whole row is clickable to toggle, same as GeoView's.
+  - `LegendPanelConfig` gained `showLayerHeaders?: boolean` (default true) — hides each layer's
+    name/toggle-all header row, useful when the map has exactly one layer of interest and the
+    panel's own `title` already describes it (removing the header also removes the "toggle whole
+    layer" affordance for that layer, accepted as a fine tradeoff when it's hidden).
+  - Cross-panel filtering (legend → other panels): toggling an item pushes which items are still
+    checked onto a linking channel (`useSetChannelField`, same mechanism `FilterPanel`/
+    `ChartPanel` use), using each item's display `name` directly (not a resolved raw/coded value
+    — see below for why). **Two bugs found and fixed, same investigation**:
+    1. The first version filtered by each item's display `name` directly — but for a classified
+       field backed by an ESRI domain/coded-value (e.g. a numeric code where "Natural" is only
+       the label for value `3`), the MAP's own backend/style filter (`setLayerFilter` →
+       GeoView's `setLayerFiltersPanel` → `featureRespectsFilterEquation`, confirmed via
+       GeoView's own `docs/programming/layer-filters.md`) evaluates against the RAW, untranslated
+       OpenLayers feature attribute — so `Symbol IN ('Natural')` compared a string literal
+       against a numeric column, matched zero rows, and (because `FilterPanel` combines every
+       contributor's field from the shared channel into one expression it pushes to the map)
+       stacked an accidental "hide everything" filter on top of the map's own correct per-item
+       toggle — the "toggling any one item hides all features" symptom.
+    2. The *fix* for (1) — resolving each item's raw/coded value from the style config instead of
+       its display name — broke chart/table/stat instead: GeoView's own feature queries
+       (`getLayerFeatures`, what those panels' row data comes from) return the DOMAIN/ALIAS-
+       TRANSLATED display value for a classified field (confirmed via GeoView's own internal test
+       `testEsriFeatureDomainFieldQueryValue`), i.e. the same string as the legend item's `name`
+       — NOT the raw code. So a row's value for "Symbol" already IS "Natural", never the coded
+       number, making the raw-value-based filter never match any row either.
+    - **Root cause**: for a domain/coded-value field, the map's own native filter mechanism and
+      the app's in-memory row-filtering mechanism need two genuinely INCOMPATIBLE value
+      representations for the exact same field — no single shared filter value can correctly
+      serve both.
+    - **Fix**: split the legend onto its OWN dedicated linking channel (`"cesi-legend-filter"` in
+      `sampleConfig.ts`, separate from `FilterPanel`/`ChartPanel`'s `"cesi-filter"`), carrying
+      the display `name` (matching what chart/table/stat's row data actually contains).
+      `FilterPanel.tsx` is untouched — it only reads `"cesi-filter"`, so the legend's channel
+      never reaches `setLayerFilter`/the map at all (the map's own visual state for legend
+      toggles is already fully and correctly handled independently via the native
+      `setItemVisibility`/`setLayerVisible` calls, so it doesn't need anything from a channel).
+      `ChartPanel`/`TablePanel`/`StatPanel` gained the ability to listen to MULTIPLE channels at
+      once (`useListenChannels(channels: string[])` in `src/linking/useChannel.ts`, shallow-
+      merging each channel's `FieldFilterValue`) and now read the full `listensTo` array (it was
+      always typed as `string[]`, only index `[0]` was used before) so they can react to both
+      their existing filter channel AND the legend's separate one.
+    - As a consequence, `resolveLegendField()` in `mapHandleAdapter.ts` no longer resolves/
+      validates a raw value per item at all — it now only needs to find which single field a
+      style classifies on (`settings.fields.length === 1`), since the channel's value is just
+      `item.name` directly. This also fully subsumes the earlier default/"other"-class special-
+      casing (nothing left to fail on). `DashboardLegendItem.value` was removed (no longer used).
+    3. **Third bug, also found and fixed, same investigation**: even after (1) and (2), nothing
+       changed — because the CESI layer's REAL symbology turned out to be based on THREE fields
+       combined (`E_Regulated`/`E_SampleType`/`E_Overall_Condition`), not the single `Symbol`
+       field every earlier fix had assumed (that field was only ever used by `ChartPanel`'s own
+       grouping — unrelated to the renderer). Resolving "which field(s) does this legend
+       classify by" required exactly one field before, so it silently returned `undefined` for
+       this layer the whole time, and `emitFilter` skipped emitting anything at all regardless of
+       which value representation was tried. Generalized to support any number of classifying
+       fields (confirmed via GeoView's real `esri-renderer.ts` that ESRI unique-value renderers
+       support up to 3 combined fields, `field1`/`field2`/`field3` → `TypeLayerStyleSettings
+       .fields: string[]`, each `info.values` being the per-field RAW values in that same field
+       order). A checked item for a multi-field classification represents one specific TUPLE of
+       values (not independently-OK values per field — plain per-field IN-lists would wrongly
+       match mixed-and-matched combinations across different checked items), so that case builds
+       a SYNTHETIC composite channel key + composite value (new `rowFilter.ts` helpers,
+       `makeCompositeField`/`makeCompositeValue`, joining with a reserved separator) instead —
+       `rowMatchesFieldFilter` recognizes this composite format and computes the same join from
+       row data before comparing. The single-field case is unchanged (still uses `item.name`
+       directly, from fix (2) above). `DashboardMapLegendLayer.field?: string` →
+       `fields?: string[]`; `DashboardLegendItem` regained a `values?: (string|number)[]` (the
+       item's raw per-field tuple, only needed/used for the multi-field case).
+  - Only this ONE direction is implemented (legend → other panels); the reverse (another panel's
+    filter auto-unchecking the matching legend item) is NOT done — flagged as real added
+    complexity, deferred until asked for.
+
 - The `map-layer` provider looks up the map by id, finds the layer, rejects non-queryable layers
   with a clear error, then calls `getLayerFeatures` — returning the same record shape as any
   other data source, so charts/tables/stats don't need to know where the data came from.
@@ -145,6 +233,13 @@ Required for v1. Panels don't reference each other directly — they publish/sub
 - Channels are declared once in config (`linking.channels`) with a type (e.g. `filter`) and the
   field they filter on, so authors wire panels together explicitly rather than relying on magic
   matching.
+- A panel isn't limited to one listened channel: `panel.interactions.listensTo` is an array, and
+  `useListenChannels(channels: string[])` (`src/linking/useChannel.ts`) shallow-merges several
+  channels' `FieldFilterValue`s into one combined filter. Used so a panel can react to two
+  *independently managed* channels at once without them needing to share a single channel's value
+  space — see the legend cross-filter fix in section 4 for a concrete case where this mattered
+  (a domain/coded-value field needs two incompatible value representations for the map's own
+  filter vs. in-memory row-filtering, so the legend got its own separate channel entirely).
 
 ## 7. Authoring
 
@@ -358,6 +453,9 @@ sense, rather than picking arbitrarily:
   was chosen over D3 because it has bar/line/pie/scatter built in out of the box, matching
   `ChartPanelConfig.chartType` directly, versus D3 requiring each chart type to be hand-built from
   primitives.
+  - Bar/line/histogram charts set Chart.js `options.scales.x/y.title` (x = the grouping field
+    name, y = `"Count"`; scatter sets both to its two numeric field names) — no axis labels were
+    shown at all before this (2026-10-19 fix), just the raw tick values.
 
 ## 12. Theming (colors only, v1)
 

@@ -43,6 +43,7 @@ const legendPanelFields = z.object({
   ...baseFields,
   type: z.literal('legend'),
   mapPanelId: z.string().optional(),
+  showLayerHeaders: z.boolean().optional(),
 });
 
 const filterFieldSchema = z.object({

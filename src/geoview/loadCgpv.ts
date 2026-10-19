@@ -1,5 +1,4 @@
-// const CGPV_SCRIPT_URL = 'https://canadian-geospatial-platform.github.io/geoview/public/cgpv-main.js';
-const CGPV_SCRIPT_URL = 'https://matthewmuehlhausernrcan.github.io/geoview/cgpv-main.js';
+const CGPV_SCRIPT_URL = 'https://canadian-geospatial-platform.github.io/geoview/public/cgpv-main.js';
 
 let cgpvPromise: Promise<void> | undefined;
 

@@ -14,6 +14,11 @@ interface PanelContainerProps {
   // true for content that should fill the panel edge-to-edge (e.g. a map or table) instead of
   // sitting inside CardContent's default padding
   disablePadding?: boolean;
+  // true to center the content both ways (e.g. a single stat value) - centering via the flex
+  // container itself (rather than a child sized to a percentage of it) avoids sub-pixel
+  // rounding between nested percentage heights, which can otherwise trigger a permanent,
+  // unnecessary scrollbar even when the content clearly fits.
+  centerContent?: boolean;
 }
 
 export function PanelContainer({
@@ -22,6 +27,7 @@ export function PanelContainer({
   expandable = true,
   bodyOverflow = 'auto',
   disablePadding = false,
+  centerContent = false,
 }: PanelContainerProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -36,7 +42,8 @@ export function PanelContainer({
           '&:hover .panel-expand-button': { opacity: 1 },
         }}
       >
-        <CardHeader
+        {title || expandable ? (
+          <CardHeader
           title={title}
           action={
             expandable && (
@@ -53,11 +60,18 @@ export function PanelContainer({
           }
           sx={{ pb: 0 }}
         />
+        ) : undefined}
         <CardContent
           sx={{
             flex: 1,
             overflow: bodyOverflow,
             minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            // MUI's CardContent gives its own last child (itself, here) extra bottom padding by
+            // default - overridden back to match the top/sides so centered content isn't skewed.
+            '&:last-child': { pb: 2 },
+            ...(centerContent && { alignItems: 'center', justifyContent: 'center' }),
             ...(disablePadding && { p: 0, '&:last-child': { pb: 0 } }),
           }}
         >
@@ -74,7 +88,18 @@ export function PanelContainer({
               </IconButton>
             }
           />
-          <CardContent sx={{ flex: 1, overflow: 'auto' }}>{children}</CardContent>
+          <CardContent
+            sx={{
+              flex: 1,
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              '&:last-child': { pb: 2 },
+              ...(centerContent && { alignItems: 'center', justifyContent: 'center' }),
+            }}
+          >
+            {children}
+          </CardContent>
         </Dialog>
       )}
     </>

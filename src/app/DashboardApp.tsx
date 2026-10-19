@@ -37,6 +37,13 @@ export function DashboardApp({ config }: DashboardAppProps) {
               '--dashboard-divider-color': theme.palette.divider,
               '--dashboard-divider-hover-color': alpha(theme.palette.primary.main, 0.25),
             },
+            // Scrollbars otherwise follow the OS/browser's own light-vs-dark preference, which
+            // can clash with this app's own (possibly differently-themed) light/dark colors.
+            '*': { scrollbarColor: `${theme.palette.action.disabled} transparent`, scrollbarWidth: 'thin' },
+            '*::-webkit-scrollbar': { width: 8, height: 8 },
+            '*::-webkit-scrollbar-track': { background: 'transparent' },
+            '*::-webkit-scrollbar-thumb': { backgroundColor: theme.palette.action.disabled, borderRadius: 4 },
+            '*::-webkit-scrollbar-thumb:hover': { backgroundColor: theme.palette.action.active },
           }}
         />
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>

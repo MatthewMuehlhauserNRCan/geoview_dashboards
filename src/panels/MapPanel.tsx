@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
+import { Box } from '@mui/material';
+
 import type { MapPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useMapRegistryStore } from '../map/registry';
@@ -89,10 +91,11 @@ export function MapPanel({ panel }: MapPanelProps) {
       {/* box-sizing: border-box keeps this div's total footprint at exactly 100% of its parent
           Cell even with the border added (otherwise the border would add 2px on top of 100%,
           overflowing the Cell) - the map then renders just inside the border, not under it. */}
-      <div
+      <Box
         ref={containerRef}
-        style={{ width: '100%', height: '100%', border: `1px solid ${theme.palette.divider}`, boxSizing: 'border-box' }}
-      />
+        sx={{ width: '100%', height: '100%', border: `1px solid ${theme.palette.divider}`, boxSizing: 'border-box' }}
+      >
+      </Box>
     </PanelContainer>
   );
 }

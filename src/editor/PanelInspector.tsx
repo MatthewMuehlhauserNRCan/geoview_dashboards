@@ -6,9 +6,11 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Divider,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
@@ -189,21 +191,32 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
       )}
 
       {leafPanel.type === 'legend' && (
-        <FormControl size="small" fullWidth>
-          <InputLabel>Map panel</InputLabel>
-          <Select
-            label="Map panel"
-            value={leafPanel.mapPanelId ?? ''}
-            onChange={(e) => onChange((p) => (p.type === 'legend' ? { ...p, mapPanelId: e.target.value || undefined } : p))}
-          >
-            <MenuItem value="">None</MenuItem>
-            {mapPanelOptions.map((m) => (
-              <MenuItem key={m.id} value={m.id}>
-                {m.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Stack spacing={2}>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Map panel</InputLabel>
+            <Select
+              label="Map panel"
+              value={leafPanel.mapPanelId ?? ''}
+              onChange={(e) => onChange((p) => (p.type === 'legend' ? { ...p, mapPanelId: e.target.value || undefined } : p))}
+            >
+              <MenuItem value="">None</MenuItem>
+              {mapPanelOptions.map((m) => (
+                <MenuItem key={m.id} value={m.id}>
+                  {m.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={leafPanel.showLayerHeaders ?? true}
+                onChange={(e) => onChange((p) => (p.type === 'legend' ? { ...p, showLayerHeaders: e.target.checked } : p))}
+              />
+            }
+            label="Show layer header (name + toggle-all) above each layer's items"
+          />
+        </Stack>
       )}
 
       {leafPanel.type === 'filter' && (

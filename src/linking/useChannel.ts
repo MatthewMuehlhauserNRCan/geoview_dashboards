@@ -14,6 +14,20 @@ export function useListenChannel(channel: string) {
   return useChannelStore((state) => state.values[channel]);
 }
 
+// Reads and merges several named channels' FieldFilterValue into one combined object, so a panel
+// can react to independently-managed cross-filters at once (e.g. a filter panel's own channel AND
+// a legend's own channel) without the two having to share a single channel - which matters when
+// their value spaces aren't compatible (see LegendPanel's "cesi-legend-filter" split for why).
+// Non-FieldFilterValue channel values (or channels with nothing published yet) are ignored.
+export function useListenChannels(channels: string[]): FieldFilterValue | undefined {
+  const allValues = useChannelStore((state) => state.values);
+  if (channels.length === 0) return undefined;
+  return channels.reduce<FieldFilterValue>((merged, channel) => {
+    const value = allValues[channel];
+    return isFieldFilterValue(value) ? { ...merged, ...value } : merged;
+  }, {});
+}
+
 // Merges one field's selected values into a channel's current FieldFilterValue, so independent
 // panels (e.g. a filter panel's dropdowns and a chart's click-to-select) can each contribute part
 // of the same combined cross-filter without clobbering each other's fields.

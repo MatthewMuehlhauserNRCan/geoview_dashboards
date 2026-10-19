@@ -3,8 +3,8 @@ import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
 import type { TablePanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
-import { useListenChannel } from '../linking/useChannel';
-import { isFieldFilterValue, rowMatchesFieldFilter } from '../linking/rowFilter';
+import { useListenChannels } from '../linking/useChannel';
+import { rowMatchesFieldFilter } from '../linking/rowFilter';
 
 interface TablePanelProps {
   panel: TablePanelConfig;
@@ -15,12 +15,9 @@ type Row = Record<string, unknown>;
 
 export function TablePanel({ panel, dataSources }: TablePanelProps) {
   const { data, isLoading, error } = useDataSource(panel.dataSource, dataSources);
-  const listenChannel = panel.interactions?.listensTo?.[0] ?? '';
-  const filterValue = useListenChannel(listenChannel);
-
-  // Only a field-filter channel (e.g. the shared cross-filter) actually narrows rows here - any
-  // other channel shape (e.g. a single clicked row from an older/unrelated linking setup) is a
-  // no-op, so this stays safe to wire to either kind of channel.
+  // Merges every listened channel (e.g. a shared filter panel's channel AND a legend's own,
+  // separate channel) into one combined filter, so this table reacts to all of them at once.
+  const filterValue = useListenChannels(panel.interactions?.listensTo ?? []);
   const rows = useMemo(() => (data ?? []).filter((row) => rowMatchesFieldFilter(row, filterValue)), [data, filterValue]);
   const columns = useMemo<MRT_ColumnDef<Row>[]>(() => {
     const columnKeys = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -39,19 +36,14 @@ export function TablePanel({ panel, dataSources }: TablePanelProps) {
     // bodyOverflow="hidden" hands scrolling over to MRT's own table container (below) instead of
     // scrolling the whole panel, so MRT can scroll vertically and horizontally in one place.
     <PanelContainer title={panel.title} expandable={false} bodyOverflow="hidden" disablePadding>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <MaterialReactTable
-            columns={columns}
-            data={rows}
-            enableStickyHeader
-            initialState={{ density: 'compact' }}
-            muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
-            muiTableContainerProps={{ sx: { flex: 1 } }}
-          />
-        </div>
-        {filterValue !== undefined && !isFieldFilterValue(filterValue) && <div>Linked selection: {JSON.stringify(filterValue)}</div>}
-      </div>
+      <MaterialReactTable
+        columns={columns}
+        data={rows}
+        enableStickyHeader
+        initialState={{ density: 'compact' }}
+        muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
+        muiTableContainerProps={{ sx: { flex: 1 } }}
+      />
     </PanelContainer>
   );
 }

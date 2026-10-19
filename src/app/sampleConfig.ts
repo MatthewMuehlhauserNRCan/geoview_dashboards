@@ -49,7 +49,14 @@ export const sampleDashboardConfig: DashboardConfig = {
     },
   ],
   linking: {
-    channels: [{ id: "cesi-filter", type: "filter", field: "Symbol" }],
+    channels: [
+      { id: "cesi-filter", type: "filter", field: "Symbol" },
+      // Separate from "cesi-filter": the legend's field is classified/domain-coded, so its items'
+      // display names don't match the raw values the map's own backend filter needs. Keeping it on
+      // its own channel means only in-memory consumers (chart/table/stat) read it, not the filter
+      // panel's combined WHERE-clause push to the map (which would break on the value mismatch).
+      { id: "cesi-legend-filter", type: "filter", field: "Symbol" },
+    ],
   },
   pages: [
     {
@@ -109,7 +116,6 @@ export const sampleDashboardConfig: DashboardConfig = {
         {
           id: "panel-users-views",
           type: "tab",
-          title: "Users",
           layout: { col: 3, row: 1, colSpan: 2, rowSpan: 2 },
           tabs: [
             {
@@ -121,7 +127,7 @@ export const sampleDashboardConfig: DashboardConfig = {
                 dataSource: "cesi-layer",
                 chartType: "bar",
                 field: "Symbol",
-                interactions: { emits: ["cesi-filter"] },
+                interactions: { emits: ["cesi-filter"], listensTo: ["cesi-legend-filter"] },
               },
             },
             {
@@ -131,7 +137,7 @@ export const sampleDashboardConfig: DashboardConfig = {
                 id: "panel-layer-table",
                 type: "table",
                 dataSource: "cesi-layer",
-                interactions: { listensTo: ["cesi-filter"] },
+                interactions: { listensTo: ["cesi-filter", "cesi-legend-filter"] },
               },
             },
             {
@@ -168,7 +174,7 @@ export const sampleDashboardConfig: DashboardConfig = {
               type: "stat",
               title: "Project Count",
               dataSource: "cesi-layer",
-              interactions: { listensTo: ["cesi-filter"] },
+              interactions: { listensTo: ["cesi-filter", "cesi-legend-filter"] },
             },
             {
               id: "panel-stat-total",
@@ -184,6 +190,8 @@ export const sampleDashboardConfig: DashboardConfig = {
           title: "Legend",
           layout: { col: 3, row: 3, colSpan: 1, rowSpan: 1 },
           mapPanelId: "panel-map",
+          showLayerHeaders: false,
+          interactions: { emits: ["cesi-legend-filter"] },
         },
         {
           id: "panel-notes",

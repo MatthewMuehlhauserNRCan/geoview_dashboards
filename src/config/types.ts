@@ -47,6 +47,9 @@ export interface TablePanelConfig extends BasePanelConfig {
 export interface LegendPanelConfig extends BasePanelConfig {
   type: 'legend';
   mapPanelId?: string;
+  // Hides each layer's header row (name + toggle-all) - useful when the map has just one layer
+  // of interest and the panel's own `title` already describes it. Defaults to true (shown).
+  showLayerHeaders?: boolean;
 }
 
 // One filterable field within a filter panel - rendered as a multiselect of that field's
