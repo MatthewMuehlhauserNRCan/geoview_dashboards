@@ -10,7 +10,8 @@ interface TitlePanelProps {
 // centered image, right text). Starts sized to its content; dragging the handle below it
 // resizes it like any other divider on the page, taking space from the grid underneath.
 export function TitlePanel({ config }: TitlePanelProps) {
-  const { height, containerRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp } = useResizableHeight(32);
+  const { height, containerRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp, onHandleKeyDown } =
+    useResizableHeight(32);
   const background = config.backgroundColor ?? 'primary.main';
 
   return (
@@ -27,11 +28,16 @@ export function TitlePanel({ config }: TitlePanelProps) {
       <Box
         role="separator"
         aria-orientation="horizontal"
+        aria-label="Resize title panel"
+        aria-valuenow={height ?? 32}
+        aria-valuemin={32}
+        tabIndex={0}
         className="grid-divider"
         sx={{ flex: '0 0 auto', height: 4, cursor: 'row-resize' }}
         onPointerDown={onHandlePointerDown}
         onPointerMove={onHandlePointerMove}
         onPointerUp={onHandlePointerUp}
+        onKeyDown={onHandleKeyDown}
       />
     </Box>
   );

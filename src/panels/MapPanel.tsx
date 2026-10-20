@@ -90,9 +90,21 @@ export function MapPanel({ panel }: MapPanelProps) {
     <PanelContainer title={panel.title} expandable={false} disablePadding>
       {/* box-sizing: border-box keeps this div's total footprint at exactly 100% of its parent
           Cell even with the border added (otherwise the border would add 2px on top of 100%,
-          overflowing the Cell) - the map then renders just inside the border, not under it. */}
+          overflowing the Cell) - the map then renders just inside the border, not under it.
+          GeoView's own map has MANY internal tab stops (zoom, geolocate, basemap, layers, ...) -
+          tabbing all the way through them to reach the rest of the page is slow at best, and a
+          genuine keyboard trap at worst (WCAG 2.1.2). `tabIndex={-1}` makes this container itself
+          focusable only programmatically (never via sequential Tab, so it adds no new stop) -
+          pressing Escape anywhere inside moves focus here, which (being outside the map's own
+          internal tab sequence) lets the very next Tab continue straight on to whatever's after
+          the map in the page, instead of its dozens of internal controls. */}
       <Box
         ref={containerRef}
+        tabIndex={-1}
+        aria-label="Interactive map. Press Escape to exit the map and continue tabbing through the page."
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') containerRef.current?.focus();
+        }}
         sx={{ width: '100%', height: '100%', border: `1px solid ${theme.palette.divider}`, boxSizing: 'border-box' }}
       >
       </Box>

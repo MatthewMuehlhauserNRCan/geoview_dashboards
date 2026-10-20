@@ -30,5 +30,22 @@ export function useResizableHeight(minHeight = 32) {
     dragStartRef.current = null;
   }, []);
 
-  return { height, containerRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp };
+  // Keyboard equivalent of the pointer drag above (WCAG 2.1.1 - a draggable control needs a
+  // non-pointer way to operate it too). Up/Left shrink, Down/Right grow, in fixed 16px steps.
+  const onHandleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const step = 16;
+      const currentHeight = height ?? containerRef.current?.getBoundingClientRect().height ?? minHeight;
+      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        setHeight(Math.max(minHeight, currentHeight - step));
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        setHeight(currentHeight + step);
+      }
+    },
+    [height, minHeight]
+  );
+
+  return { height, containerRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp, onHandleKeyDown };
 }

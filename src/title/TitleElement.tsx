@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PrintIcon from '@mui/icons-material/Print';
 import type { TitleElementConfig } from '../config/types';
 
 interface TitleElementProps {
@@ -54,6 +55,7 @@ export function TitleElement({ config }: TitleElementProps) {
         {config.optionsMenu && (
           <>
             <IconButton
+              className="no-print"
               color="inherit"
               aria-label={config.optionsMenu.label ?? 'Options'}
               onClick={(event) => setOptionsAnchor(event.currentTarget)}
@@ -75,9 +77,13 @@ export function TitleElement({ config }: TitleElementProps) {
           </>
         )}
 
+        <IconButton className="no-print" color="inherit" aria-label="Print" onClick={() => window.print()}>
+          <PrintIcon />
+        </IconButton>
+
         {config.hamburgerMenu && (
           <>
-            <IconButton color="inherit" aria-label="Menu" onClick={(event) => setHamburgerAnchor(event.currentTarget)}>
+            <IconButton className="no-print" color="inherit" aria-label="Menu" onClick={(event) => setHamburgerAnchor(event.currentTarget)}>
               <MenuIcon />
             </IconButton>
             <Menu anchorEl={hamburgerAnchor} open={Boolean(hamburgerAnchor)} onClose={() => setHamburgerAnchor(null)}>

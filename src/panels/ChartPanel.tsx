@@ -20,6 +20,7 @@ import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels, useSetChannelField } from '../linking/useChannel';
 import { rowMatchesFieldFilter, type FieldFilterValue } from '../linking/rowFilter';
+import { groupAndAggregate, describeAggregation } from '../dataSources/aggregate';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -59,7 +60,10 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
     return rows.filter((row) => rowMatchesFieldFilter(row, otherFilters));
   }, [rows, filterValue, groupByField]);
 
-  const grouped = useMemo(() => (groupByField ? groupCounts(displayRows, groupByField) : undefined), [displayRows, groupByField]);
+  const grouped = useMemo(
+    () => (groupByField ? groupAndAggregate(displayRows, groupByField, panel.aggregation ?? 'count', panel.valueField) : undefined),
+    [displayRows, groupByField, panel.aggregation, panel.valueField],
+  );
 
   // Clicking a bar toggles that category on/off in the shared cross-filter channel (clicking the
   // currently-selected one again clears it), rather than emitting the raw clicked row.
@@ -80,6 +84,7 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
     return (
       <PanelContainer title={panel.title}>
         <Scatter
+          aria-label={`${panel.title ?? 'Scatter chart'}: ${yKey} versus ${xKey}`}
           data={{
             datasets: [
               {
@@ -101,13 +106,14 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
   // TODO: real binning once the query/transform layer exists; treated as a bar chart for now
   const { labelKey, valueKey } = grouped ? {} : pickAxisKeys(displayRows);
   const selectedValues = (groupByField && filterValue?.[groupByField]) || [];
+  const aggregationLabel = describeAggregation(panel.aggregation ?? 'count', panel.valueField);
   const chartData = grouped
     ? {
         labels: grouped.labels,
         datasets: [
           {
             label: panel.title ?? groupByField,
-            data: grouped.counts,
+            data: grouped.values,
             backgroundColor: grouped.labels.map((label) => (selectedValues.includes(label) ? selectedColor : defaultColor)),
           },
         ],
@@ -125,39 +131,29 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
     responsive: true,
     maintainAspectRatio: false,
     onClick: handleClick,
-    // Pie has no axes - only bar/line/histogram get axis titles (x = the grouped/label field, y = a count).
+    // Pie has no axes - only bar/line/histogram get axis titles (x = the grouped/label field, y = the aggregation).
     ...(panel.chartType !== 'pie' && {
       scales: {
         x: { title: { display: true, text: groupByField ?? labelKey ?? '' } },
-        y: { title: { display: true, text: 'Count' } },
+        y: { title: { display: true, text: grouped ? aggregationLabel : 'Count' } },
       },
     }),
   };
+  // Chart.js canvases get `role="img"` for free (react-chartjs-2's default), but that alone has
+  // no accessible NAME for screen readers - this is read instead of the (purely visual) chart.
+  const chartDescription = `${panel.title ?? 'Chart'}: ${panel.chartType} chart${
+    groupByField ? ` of ${aggregationLabel.toLowerCase()} by ${groupByField}` : ''
+  }`;
 
   return (
     <PanelContainer title={panel.title}>
-      {panel.chartType === 'line' && <Line data={chartData} options={options} />}
-      {panel.chartType === 'pie' && <Pie data={chartData} options={options} />}
-      {(panel.chartType === 'bar' || panel.chartType === 'histogram') && <Bar data={chartData} options={options} />}
+      {panel.chartType === 'line' && <Line aria-label={chartDescription} data={chartData} options={options} />}
+      {panel.chartType === 'pie' && <Pie aria-label={chartDescription} data={chartData} options={options} />}
+      {(panel.chartType === 'bar' || panel.chartType === 'histogram') && (
+        <Bar aria-label={chartDescription} data={chartData} options={options} />
+      )}
     </PanelContainer>
   );
-}
-
-// Counts rows per distinct value of `field` - the data behind a categorical bar/pie chart.
-function groupCounts(rows: Row[], field: string): { labels: string[]; counts: number[] } {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = String(row[field] ?? 'null');
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  const labels = sortLabels(Array.from(counts.keys()));
-  return { labels, counts: labels.map((label) => counts.get(label) ?? 0) };
-}
-
-// Plain string sort puts "10"/"11" before "2" - sort numerically when every label looks numeric.
-function sortLabels(labels: string[]): string[] {
-  const allNumeric = labels.every((label) => label.trim() !== '' && !Number.isNaN(Number(label)));
-  return [...labels].sort((a, b) => (allNumeric ? Number(a) - Number(b) : a.localeCompare(b)));
 }
 
 function makeGroupClickHandler(

@@ -103,7 +103,7 @@ export const sampleDashboardConfig: DashboardConfig = {
             },
             appBar: {
               tabs: {
-                core: [],
+                core: ["details"],
               },
             },
             footerBar: {

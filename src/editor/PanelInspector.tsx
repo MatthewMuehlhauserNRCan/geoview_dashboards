@@ -187,6 +187,33 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             fullWidth
             onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, field: e.target.value || undefined } : p))}
           />
+          <FormControl size="small" fullWidth>
+            <InputLabel>Aggregation</InputLabel>
+            <Select
+              label="Aggregation"
+              value={leafPanel.aggregation ?? 'count'}
+              onChange={(e) =>
+                onChange((p) =>
+                  p.type === 'chart' ? { ...p, aggregation: e.target.value as typeof p.aggregation } : p,
+                )
+              }
+            >
+              <MenuItem value="count">Count (number of rows per group)</MenuItem>
+              <MenuItem value="sum">Sum</MenuItem>
+              <MenuItem value="avg">Average</MenuItem>
+              <MenuItem value="min">Min</MenuItem>
+              <MenuItem value="max">Max</MenuItem>
+            </Select>
+          </FormControl>
+          {leafPanel.aggregation && leafPanel.aggregation !== 'count' && (
+            <TextField
+              label="Value field (numeric field to aggregate)"
+              value={leafPanel.valueField ?? ''}
+              size="small"
+              fullWidth
+              onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, valueField: e.target.value || undefined } : p))}
+            />
+          )}
         </Stack>
       )}
 
@@ -198,16 +225,19 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               label="Aggregation"
               value={leafPanel.aggregation ?? 'count'}
               onChange={(e) =>
-                onChange((p) => (p.type === 'stat' ? { ...p, aggregation: e.target.value as 'count' | 'sum' } : p))
+                onChange((p) => (p.type === 'stat' ? { ...p, aggregation: e.target.value as typeof p.aggregation } : p))
               }
             >
               <MenuItem value="count">Count (number of matching rows)</MenuItem>
               <MenuItem value="sum">Sum (total of a numeric field)</MenuItem>
+              <MenuItem value="avg">Average</MenuItem>
+              <MenuItem value="min">Min</MenuItem>
+              <MenuItem value="max">Max</MenuItem>
             </Select>
           </FormControl>
-          {leafPanel.aggregation === 'sum' && (
+          {leafPanel.aggregation && leafPanel.aggregation !== 'count' && (
             <TextField
-              label="Field (numeric field to total)"
+              label="Field (numeric field to aggregate)"
               value={leafPanel.field ?? ''}
               size="small"
               fullWidth

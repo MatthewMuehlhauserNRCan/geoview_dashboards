@@ -62,7 +62,12 @@ export function TablePanel({ panel, dataSources }: TablePanelProps) {
           displayColumnDefOptions: { 'mrt-row-actions': { header: '', size: 50, grow: false } },
           renderRowActions: ({ row }: { row: { original: Row } }) => (
             <Tooltip title="Zoom to feature">
-              <IconButton size="small" color="primary" onClick={() => void mapHandle!.zoomToFeature(layerId!, row.original)}>
+              <IconButton
+                size="small"
+                color="primary"
+                aria-label="Zoom to feature"
+                onClick={() => void mapHandle!.zoomToFeature(layerId!, row.original)}
+              >
                 <ZoomInIcon fontSize="small" />
               </IconButton>
             </Tooltip>

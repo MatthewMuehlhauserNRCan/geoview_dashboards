@@ -48,16 +48,21 @@ Renders a bar/line/pie/scatter/histogram chart (Chart.js) from its `dataSource`'
 interface ChartPanelConfig {
   type: 'chart';
   chartType: 'bar' | 'line' | 'pie' | 'scatter' | 'histogram';
-  field?: string; // categorical field to count rows by
+  field?: string; // categorical field to group rows by
+  aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max'; // defaults to 'count'
+  valueField?: string; // numeric field to aggregate; required (and only used) when aggregation isn't 'count'
 }
 ```
 
-- `field`: for `bar`/`pie`/`histogram`, groups rows by this field's distinct values and counts
-  rows per group (e.g. one bar per distinct `"Symbol"` value). Without it, these chart types fall
-  back to one bar per raw row - only sensible for an already-small row set. `histogram` is
-  currently an alias for `bar` (no real binning yet).
-- `scatter` ignores `field` - it needs exactly 2 numeric fields in the data and plots them
-  directly against each other (auto-detected from the row shape).
+- `field`: for `bar`/`pie`/`histogram`, groups rows by this field's distinct values (e.g. one bar
+  per distinct `"Symbol"` value). Without it, these chart types fall back to one bar per raw row -
+  only sensible for an already-small row set. `histogram` is currently an alias for `bar` (no real
+  binning yet).
+- `aggregation` (only applies when `field` is set): `'count'` (default) counts rows per group;
+  `'sum'`/`'avg'`/`'min'`/`'max'` aggregate `valueField` within each group instead (e.g. average
+  population per region rather than a feature count per region).
+- `scatter` ignores `field`/`aggregation` - it needs exactly 2 numeric fields in the data and
+  plots them directly against each other (auto-detected from the row shape).
 - Clicking a bar/slice toggles that category on/off in whichever channel this panel `emits` to
   (see [Linking](guide/linking.md)) - clicking the same one again clears the selection.
 
@@ -69,15 +74,16 @@ A single big number (or gauge) summarizing the rows currently matching every cha
 ```ts
 interface StatPanelConfig {
   type: 'stat';
-  aggregation?: 'count' | 'sum'; // defaults to 'count'
-  field?: string; // numeric field to total; required (and only used) when aggregation is 'sum'
+  aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max'; // defaults to 'count'
+  field?: string; // numeric field to aggregate; required (and only used) when aggregation isn't 'count'
   display?: 'number' | 'gauge'; // defaults to 'number'
   gauge?: { min?: number; max?: number; label?: 'value' | 'percentage' | 'both' }; // gauge arc range; max defaults to this stat's own unfiltered total (min defaults to 0); label defaults to 'value'
 }
 ```
 
 - `aggregation: 'count'` (default): the number of matching rows.
-- `aggregation: 'sum'`: the total of `field` across matching rows.
+- `aggregation: 'sum' | 'avg' | 'min' | 'max'`: the total/average/minimum/maximum of `field`
+  across matching rows.
 - `display: 'gauge'`: renders the value as a semi-circular gauge arc (instead of a plain number),
   colored green/amber/red as it crosses 70%/90% of the `gauge.min`..`gauge.max` range. Without an
   explicit `gauge.max`, it defaults to this same stat's own unfiltered total - so by default the

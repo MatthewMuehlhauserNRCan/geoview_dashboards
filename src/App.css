@@ -73,4 +73,33 @@
   overflow-x: auto;
 }
 
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+  z-index: 1000;
+  padding: 8px 16px;
+  background: #000;
+  color: #fff;
+}
+
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+}
+
+/* Print: hide interactive-only chrome (drag dividers, expand/menu/print buttons, the page
+   footer tabs) - this prints the dashboard AS CURRENTLY SHOWN on screen, it doesn't un-scroll
+   tables or expand the fixed-height grid to fit everything (that would need a much bigger,
+   separate layout mode). The actual `@page` size is computed and injected at print time by
+   DashboardApp.tsx (sized to the dashboard's own aspect ratio, not a fixed guess here).  */
+@media print {
+  .no-print,
+  .grid-divider,
+  .panel-expand-button,
+  .dashboard-footer {
+    display: none !important;
+  }
+}
+
 

@@ -11,6 +11,7 @@ import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels } from '../linking/useChannel';
 import { rowMatchesFieldFilter } from '../linking/rowFilter';
+import { aggregateValues } from '../dataSources/aggregate';
 
 ChartJS.register(ArcElement, Tooltip, annotationPlugin);
 
@@ -40,10 +41,7 @@ export function StatPanel({ panel, dataSources }: StatPanelProps) {
   const rows = useMemo(() => (data ?? []).filter((row) => rowMatchesFieldFilter(row, filterValue)), [data, filterValue]);
 
   const aggregate = useMemo(
-    () => (sourceRows: Row[]) =>
-      panel.aggregation === 'sum' && panel.field
-        ? sourceRows.reduce((sum, row) => sum + (Number(row[panel.field as string]) || 0), 0)
-        : sourceRows.length,
+    () => (sourceRows: Row[]) => aggregateValues(sourceRows, panel.aggregation ?? 'count', panel.field),
     [panel.aggregation, panel.field],
   );
   const value = useMemo(() => aggregate(rows), [aggregate, rows]);
@@ -104,6 +102,9 @@ function Gauge({
     // An explicit 100%/100% here restores a real box for it to fill.
     <div style={{ width: '100%', height: '100%' }}>
       <Doughnut
+        // The gauge's value/percentage text is drawn on canvas (chartjs-plugin-annotation), with
+        // no corresponding real DOM text - without this, a screen reader has nothing to read.
+        aria-label={`${content.join(', ')} gauge`}
         data={{
           datasets: [
             {

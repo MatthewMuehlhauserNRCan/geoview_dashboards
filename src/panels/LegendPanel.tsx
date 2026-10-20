@@ -154,6 +154,7 @@ function LegendRow({ label, visible, onClick, header = false, icon, indent = fal
       dense
       disableRipple
       onClick={onClick}
+      aria-pressed={visible}
       sx={{
         pl: indent ? 4 : 2,
         borderLeft: '5px solid',

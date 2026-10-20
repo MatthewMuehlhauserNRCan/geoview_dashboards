@@ -34,13 +34,17 @@ export interface ChartPanelConfig extends BasePanelConfig {
   // bar/pie/histogram charts - e.g. a count of features per distinct "Symbol" value. Without it,
   // these chart types fall back to one bar per raw row (only sensible for already-small row sets).
   field?: string;
+  // 'count' (default) counts rows per group; sum/avg/min/max aggregate `valueField` per group instead.
+  aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max';
+  // numeric field to aggregate; required (and only used) when aggregation isn't 'count'.
+  valueField?: string;
 }
 
 export interface StatPanelConfig extends BasePanelConfig {
   type: 'stat';
-  // 'count' (default) counts matching rows; 'sum' totals a numeric field across them.
-  aggregation?: 'count' | 'sum';
-  // numeric field to total; required (and only used) when aggregation is 'sum'.
+  // 'count' (default) counts matching rows; sum/avg/min/max aggregate `field` across them instead.
+  aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max';
+  // numeric field to aggregate; required (and only used) when aggregation isn't 'count'.
   field?: string;
   // plain number (default) or a semi-circular gauge arc showing the value within gauge.min..max.
   display?: 'number' | 'gauge';

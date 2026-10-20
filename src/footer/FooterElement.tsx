@@ -12,6 +12,8 @@ interface FooterElementProps {
 export function FooterElement({ pages, activePageId, onChange }: FooterElementProps) {
   return (
     <Tabs
+      className="dashboard-footer"
+      aria-label="Dashboard pages"
       value={activePageId}
       onChange={(_event, value: string) => onChange(value)}
       sx={{ flex: '0 0 auto', minHeight: 0, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}

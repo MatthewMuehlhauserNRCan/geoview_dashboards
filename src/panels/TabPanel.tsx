@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Box, Tab, Tabs } from '@mui/material';
 import type { DataSourceConfig, TabPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
+import { PanelErrorBoundary } from './PanelErrorBoundary';
 import { leafPanelRegistry } from './leafRegistry';
 
 interface TabPanelProps {
@@ -30,7 +31,9 @@ export function TabPanel({ panel, dataSources }: TabPanelProps) {
           ))}
         </Tabs>
         <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-          <ActivePanelComponent panel={activeTab.panel} dataSources={dataSources} />
+          <PanelErrorBoundary key={activeTab.id} panelId={activeTab.panel.id} title={activeTab.panel.title}>
+            <ActivePanelComponent panel={activeTab.panel} dataSources={dataSources} />
+          </PanelErrorBoundary>
         </Box>
       </Box>
     </PanelContainer>

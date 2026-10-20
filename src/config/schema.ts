@@ -33,6 +33,8 @@ const chartPanelFields = z.object({
   type: z.literal('chart'),
   chartType: z.enum(['bar', 'line', 'pie', 'scatter', 'histogram']),
   field: z.string().optional(),
+  aggregation: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
+  valueField: z.string().optional(),
 });
 
 const statGaugeSchema = z.object({
@@ -44,7 +46,7 @@ const statGaugeSchema = z.object({
 const statPanelFields = z.object({
   ...baseFields,
   type: z.literal('stat'),
-  aggregation: z.enum(['count', 'sum']).optional(),
+  aggregation: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
   field: z.string().optional(),
   display: z.enum(['number', 'gauge']).optional(),
   gauge: statGaugeSchema.optional(),

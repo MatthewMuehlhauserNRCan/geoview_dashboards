@@ -1,6 +1,7 @@
 import { Cell, Grid, Gridline } from 'react-resizable-panels';
 import type { DataSourceConfig, StackPanelConfig } from '../config/types';
 import { leafPanelRegistry } from './leafRegistry';
+import { PanelErrorBoundary } from './PanelErrorBoundary';
 import { toPercentFromWeights } from '../grid/layoutUtils';
 
 interface StackPanelProps {
@@ -39,7 +40,9 @@ export function StackPanel({ panel, dataSources }: StackPanelProps) {
             rowSpan={1}
             style={{ minWidth: 0, minHeight: 0 }}
           >
-            <ItemComponent panel={item} dataSources={dataSources} />
+            <PanelErrorBoundary panelId={item.id} title={item.title}>
+              <ItemComponent panel={item} dataSources={dataSources} />
+            </PanelErrorBoundary>
           </Cell>
         );
       })}

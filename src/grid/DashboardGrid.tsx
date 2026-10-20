@@ -1,6 +1,7 @@
 import { Cell, Grid, Gridline } from 'react-resizable-panels';
 import type { DataSourceConfig, GridConfig, GridPanel } from '../config/types';
 import { panelRegistry } from '../panels';
+import { PanelErrorBoundary } from '../panels/PanelErrorBoundary';
 import { toPercentFromWeights } from './layoutUtils';
 
 interface DashboardGridProps {
@@ -123,7 +124,11 @@ function partition(items: LayoutItem[], colStart: number, colEnd: number, rowSta
 
 function renderPanel(panel: GridPanel, dataSources: DataSourceConfig[]) {
   const PanelComponent = panelRegistry[panel.type];
-  return <PanelComponent panel={panel} dataSources={dataSources} />;
+  return (
+    <PanelErrorBoundary panelId={panel.id} title={panel.title}>
+      <PanelComponent panel={panel} dataSources={dataSources} />
+    </PanelErrorBoundary>
+  );
 }
 
 function FlatGridLeaf({
