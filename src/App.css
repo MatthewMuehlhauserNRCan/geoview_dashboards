@@ -32,4 +32,45 @@
   background: var(--dashboard-divider-hover-color, rgba(25, 118, 210, 0.25));
 }
 
+.markdown-content {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  overflow-wrap: break-word;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content img {
+  max-width: 100%;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 4px 8px;
+}
+
+.markdown-content code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+.markdown-content pre code {
+  display: block;
+  padding: 8px;
+  overflow-x: auto;
+}
+
 

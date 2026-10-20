@@ -70,11 +70,18 @@ const filterPanelFields = z.object({
   fields: z.array(filterFieldSchema),
 });
 
-const textPanelFields = z.object({
-  ...baseFields,
-  type: z.literal('text'),
-  content: z.string(),
-});
+const textPanelFields = z
+  .object({
+    ...baseFields,
+    type: z.literal('text'),
+    content: z.string().optional(),
+    contentUrl: z.string().optional(),
+    format: z.enum(['plain', 'markdown']).optional(),
+  })
+  .refine((panel) => Boolean(panel.content) || Boolean(panel.contentUrl), {
+    message: 'text panel requires either `content` or `contentUrl`',
+    path: ['content'],
+  });
 
 const leafPanelSchema = z.discriminatedUnion('type', [
   mapPanelFields,

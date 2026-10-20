@@ -374,15 +374,41 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
       )}
 
       {leafPanel.type === 'text' && (
-        <TextField
-          label="Content"
-          value={leafPanel.content}
-          multiline
-          minRows={4}
-          fullWidth
-          size="small"
-          onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, content: e.target.value } : p))}
-        />
+        <Stack spacing={1.5}>
+          <TextField
+            label="Content URL"
+            placeholder="https://example.com/notes.md"
+            helperText="Optional - fetches a remote markdown document instead of the Content field below, and is always rendered as markdown."
+            value={leafPanel.contentUrl ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, contentUrl: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="Content"
+            value={leafPanel.content ?? ''}
+            multiline
+            minRows={4}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.contentUrl)}
+            helperText={leafPanel.contentUrl ? 'Ignored while Content URL is set.' : undefined}
+            onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, content: e.target.value } : p))}
+          />
+          <FormControl size="small" fullWidth disabled={Boolean(leafPanel.contentUrl)}>
+            <InputLabel>Format</InputLabel>
+            <Select
+              label="Format"
+              value={leafPanel.format ?? 'plain'}
+              onChange={(e) =>
+                onChange((p) => (p.type === 'text' ? { ...p, format: e.target.value as 'plain' | 'markdown' } : p))
+              }
+            >
+              <MenuItem value="plain">Plain text</MenuItem>
+              <MenuItem value="markdown">Markdown</MenuItem>
+            </Select>
+          </FormControl>
+        </Stack>
       )}
     </Stack>
   );

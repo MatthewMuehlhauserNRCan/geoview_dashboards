@@ -158,14 +158,27 @@ interface FilterPanelConfig {
 
 ## `text`
 
-Plain text content (e.g. notes, instructions).
+Plain text, formatted markdown, or a remote markdown document (e.g. notes, instructions, a
+changelog fetched from a CMS/repo).
 
 ```ts
 interface TextPanelConfig {
   type: 'text';
-  content: string;
+  content?: string; // inline text; required unless `contentUrl` is set
+  contentUrl?: string; // fetches a remote document instead of `content` - always rendered as markdown
+  format?: 'plain' | 'markdown'; // how `content` is rendered; defaults to 'plain'
 }
 ```
+
+- Plain text (default): `content` is shown as-is, no formatting applied.
+- `format: 'markdown'`: `content` is rendered as markdown (headings, bold/italic, lists, links,
+  tables, code blocks - [GitHub-flavored](https://github.github.com/gfm/), via `remark-gfm`).
+- `contentUrl`: fetches that URL's text and renders it as markdown, regardless of `format` - use
+  this to point at a `.md` file hosted anywhere (a repo's raw file URL, a CMS, etc.) instead of
+  pasting its contents inline. `content` is ignored while `contentUrl` is set.
+- Raw HTML embedded in markdown is NOT rendered (intentionally, to avoid a script-injection risk
+  when `contentUrl` points at content the dashboard author doesn't fully control) - only genuine
+  markdown syntax is converted to formatting.
 
 ## `tab`
 

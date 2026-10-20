@@ -87,7 +87,13 @@ export interface FilterPanelConfig extends BasePanelConfig {
 
 export interface TextPanelConfig extends BasePanelConfig {
   type: 'text';
-  content: string;
+  // inline text; required unless `contentUrl` is set. Rendered per `format` (plain text by default).
+  content?: string;
+  // fetches a remote document's text instead of using `content` - always rendered as markdown,
+  // regardless of `format` (that's the whole point of pointing at a `.md` document).
+  contentUrl?: string;
+  // how `content` is rendered; ignored when `contentUrl` is set (always markdown there). Defaults to 'plain'.
+  format?: 'plain' | 'markdown';
 }
 
 // Panel types that can be placed directly on the grid or nested inside a tab panel.

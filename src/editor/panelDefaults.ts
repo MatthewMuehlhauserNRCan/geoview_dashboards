@@ -18,7 +18,7 @@ export function createDefaultLeafPanel(type: LeafPanelConfig['type'], id = gener
     case 'filter':
       return { id, type, title: 'Filter', fields: [] };
     case 'text':
-      return { id, type, title: 'Text', content: '' };
+      return { id, type, title: 'Text', content: '', format: 'plain' };
   }
 }
 

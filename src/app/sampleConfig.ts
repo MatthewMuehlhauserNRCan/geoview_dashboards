@@ -21,7 +21,7 @@ export const sampleDashboardConfig: DashboardConfig = {
         {
           id: "docs",
           label: "Documentation",
-          href: "https://canadian-geospatial-platform.github.io/geoview/",
+          href: "./docs/index.html",
         },
       ],
       notice: {
@@ -201,7 +201,7 @@ export const sampleDashboardConfig: DashboardConfig = {
           type: "text",
           title: "Notes",
           layout: { col: 4, row: 3, colSpan: 1, rowSpan: 1 },
-          content: "Notes panel placeholder.",
+          contentUrl: "./sample-notes.md",
         },
       ],
     },

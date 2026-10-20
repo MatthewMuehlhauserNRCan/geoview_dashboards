@@ -128,10 +128,9 @@ docs/ARCHITECTURE.md   internal, chronological decision log - NOT for dashboard 
 ## Testing/verification conventions
 
 - `tsc -b` + `npm run build` are the baseline for "done" on any change.
-- For live browser verification: the project owner generally prefers **not** running a live
-  dev-server + browser-testing loop for routine/low-risk changes (rely on `tsc -b`/`vite build`
-  only) - ask first if a change seems routine; live-verify proactively for anything visual/
-  interactive/non-trivial, or when asked.
+- For live browser verification: if a change is visual/interactive/non-trivial, live-verify
+  proactively without asking. Otherwise, for routine/low-risk changes, rely on `tsc -b`/
+  `vite build` only and ask first before running a live dev-server + browser-testing loop.
 - Known flaky spots in this environment, not code bugs: the real CESI ArcGIS endpoint
   (`maps-cartes.ec.gc.ca`) is sometimes unreachable from a sandboxed browser (CORS or just no
   requests firing) - don't over-conclude from one failed live attempt against it. Simulating a
