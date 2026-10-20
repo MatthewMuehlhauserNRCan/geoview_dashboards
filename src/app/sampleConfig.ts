@@ -168,10 +168,13 @@ export const sampleDashboardConfig: DashboardConfig = {
           id: "panel-stat",
           type: "stack",
           layout: { col: 2, row: 3, colSpan: 1, rowSpan: 1 },
+          sizes: [2, 1],
           items: [
             {
               id: "panel-stat-filtered",
               type: "stat",
+              display: "gauge",
+              gauge: { label: "percentage" },
               title: "Project Count",
               dataSource: "cesi-layer",
               interactions: { listensTo: ["cesi-filter", "cesi-legend-filter"] },

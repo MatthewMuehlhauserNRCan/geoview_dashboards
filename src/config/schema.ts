@@ -35,7 +35,20 @@ const chartPanelFields = z.object({
   field: z.string().optional(),
 });
 
-const statPanelFields = z.object({ ...baseFields, type: z.literal('stat') });
+const statGaugeSchema = z.object({
+  min: z.number().optional(),
+  max: z.number().optional(),
+  label: z.enum(['value', 'percentage', 'both']).optional(),
+});
+
+const statPanelFields = z.object({
+  ...baseFields,
+  type: z.literal('stat'),
+  aggregation: z.enum(['count', 'sum']).optional(),
+  field: z.string().optional(),
+  display: z.enum(['number', 'gauge']).optional(),
+  gauge: statGaugeSchema.optional(),
+});
 
 const tablePanelFields = z.object({ ...baseFields, type: z.literal('table'), showZoomToFeature: z.boolean().optional() });
 

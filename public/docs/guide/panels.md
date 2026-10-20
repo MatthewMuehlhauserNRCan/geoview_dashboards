@@ -63,17 +63,31 @@ interface ChartPanelConfig {
 
 ## `stat`
 
-A single big number - the count of rows currently matching every channel this panel
-`listensTo` (or the data source's full row count, if it listens to nothing).
+A single big number (or gauge) summarizing the rows currently matching every channel this panel
+`listensTo` (or the data source's full row set, if it listens to nothing).
 
 ```ts
 interface StatPanelConfig {
   type: 'stat';
+  aggregation?: 'count' | 'sum'; // defaults to 'count'
+  field?: string; // numeric field to total; required (and only used) when aggregation is 'sum'
+  display?: 'number' | 'gauge'; // defaults to 'number'
+  gauge?: { min?: number; max?: number; label?: 'value' | 'percentage' | 'both' }; // gauge arc range; max defaults to this stat's own unfiltered total (min defaults to 0); label defaults to 'value'
 }
 ```
 
-No fields beyond the shared base ones - give it a `title` (e.g. `"Total Count"`) and a
-`dataSource`.
+- `aggregation: 'count'` (default): the number of matching rows.
+- `aggregation: 'sum'`: the total of `field` across matching rows.
+- `display: 'gauge'`: renders the value as a semi-circular gauge arc (instead of a plain number),
+  colored green/amber/red as it crosses 70%/90% of the `gauge.min`..`gauge.max` range. Without an
+  explicit `gauge.max`, it defaults to this same stat's own unfiltered total - so by default the
+  arc reads as "filtered value out of the whole" rather than clamping to a fixed 0..100 scale.
+- `gauge.label`: what's shown centered on the arc - the raw `value` (default), its `percentage` of
+  `gauge.min`..`gauge.max`, or `both` (value as the main line, percentage smaller underneath).
+
+
+Give it a `title` (e.g. `"Total Count"`) and a `dataSource`.
+
 
 ## `table`
 

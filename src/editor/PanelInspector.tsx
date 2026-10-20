@@ -190,6 +190,95 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
         </Stack>
       )}
 
+      {leafPanel.type === 'stat' && (
+        <Stack spacing={2}>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Aggregation</InputLabel>
+            <Select
+              label="Aggregation"
+              value={leafPanel.aggregation ?? 'count'}
+              onChange={(e) =>
+                onChange((p) => (p.type === 'stat' ? { ...p, aggregation: e.target.value as 'count' | 'sum' } : p))
+              }
+            >
+              <MenuItem value="count">Count (number of matching rows)</MenuItem>
+              <MenuItem value="sum">Sum (total of a numeric field)</MenuItem>
+            </Select>
+          </FormControl>
+          {leafPanel.aggregation === 'sum' && (
+            <TextField
+              label="Field (numeric field to total)"
+              value={leafPanel.field ?? ''}
+              size="small"
+              fullWidth
+              onChange={(e) => onChange((p) => (p.type === 'stat' ? { ...p, field: e.target.value || undefined } : p))}
+            />
+          )}
+          <FormControl size="small" fullWidth>
+            <InputLabel>Display</InputLabel>
+            <Select
+              label="Display"
+              value={leafPanel.display ?? 'number'}
+              onChange={(e) =>
+                onChange((p) => (p.type === 'stat' ? { ...p, display: e.target.value as 'number' | 'gauge' } : p))
+              }
+            >
+              <MenuItem value="number">Plain number</MenuItem>
+              <MenuItem value="gauge">Gauge</MenuItem>
+            </Select>
+          </FormControl>
+          {leafPanel.display === 'gauge' && (
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Gauge min"
+                  type="number"
+                  value={leafPanel.gauge?.min ?? 0}
+                  size="small"
+                  fullWidth
+                  onChange={(e) =>
+                    onChange((p) =>
+                      p.type === 'stat' ? { ...p, gauge: { ...p.gauge, min: e.target.value === '' ? undefined : Number(e.target.value) } } : p,
+                    )
+                  }
+                />
+                <TextField
+                  label="Gauge max"
+                  type="number"
+                  value={leafPanel.gauge?.max ?? ''}
+                  placeholder="Defaults to this stat's unfiltered total"
+                  size="small"
+                  fullWidth
+                  onChange={(e) =>
+                    onChange((p) =>
+                      p.type === 'stat' ? { ...p, gauge: { ...p.gauge, max: e.target.value === '' ? undefined : Number(e.target.value) } } : p,
+                    )
+                  }
+                />
+              </Stack>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Gauge label</InputLabel>
+                <Select
+                  label="Gauge label"
+                  value={leafPanel.gauge?.label ?? 'value'}
+                  onChange={(e) =>
+                    onChange((p) =>
+                      p.type === 'stat'
+                        ? { ...p, gauge: { ...p.gauge, label: e.target.value as 'value' | 'percentage' | 'both' } }
+                        : p,
+                    )
+                  }
+                >
+                  <MenuItem value="value">Value</MenuItem>
+                  <MenuItem value="percentage">Percentage (of gauge min..max)</MenuItem>
+                  <MenuItem value="both">Both (value, with percentage underneath)</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+          )}
+        </Stack>
+      )}
+
       {leafPanel.type === 'legend' && (
         <Stack spacing={2}>
           <FormControl size="small" fullWidth>

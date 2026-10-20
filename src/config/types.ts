@@ -38,6 +38,19 @@ export interface ChartPanelConfig extends BasePanelConfig {
 
 export interface StatPanelConfig extends BasePanelConfig {
   type: 'stat';
+  // 'count' (default) counts matching rows; 'sum' totals a numeric field across them.
+  aggregation?: 'count' | 'sum';
+  // numeric field to total; required (and only used) when aggregation is 'sum'.
+  field?: string;
+  // plain number (default) or a semi-circular gauge arc showing the value within gauge.min..max.
+  display?: 'number' | 'gauge';
+  gauge?: {
+    min?: number;
+    max?: number;
+    // what's shown centered on the arc: the raw value (default), its percentage of min..max, or
+    // both (value as the main line, percentage as a smaller line underneath).
+    label?: 'value' | 'percentage' | 'both';
+  };
 }
 
 export interface TablePanelConfig extends BasePanelConfig {
