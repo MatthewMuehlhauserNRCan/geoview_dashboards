@@ -31,6 +31,32 @@ export function PanelContainer({
 }: PanelContainerProps) {
   const [expanded, setExpanded] = useState(false);
 
+  // No title: the header row would be mostly empty space, so the button floats over the
+  // content's corner instead of reserving its own CardHeader row.
+  const expandButton = expandable && (
+    <IconButton
+      className="panel-expand-button"
+      size="small"
+      aria-label="Expand panel"
+      onClick={() => setExpanded(true)}
+      sx={{
+        opacity: 0,
+        transition: 'opacity 0.15s ease',
+        '&:focus-visible': { opacity: 1 },
+        ...(!title && {
+          position: 'absolute',
+          top: 4,
+          right: 4,
+          zIndex: 1,
+          bgcolor: 'background.paper',
+          '&:hover': { bgcolor: 'action.hover' },
+        }),
+      }}
+    >
+      <FullscreenIcon fontSize="small" />
+    </IconButton>
+  );
+
   return (
     <>
       <Card
@@ -39,28 +65,11 @@ export function PanelContainer({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          position: 'relative',
           '&:hover .panel-expand-button': { opacity: 1 },
         }}
       >
-        {title || expandable ? (
-          <CardHeader
-          title={title}
-          action={
-            expandable && (
-              <IconButton
-                className="panel-expand-button"
-                size="small"
-                aria-label="Expand panel"
-                onClick={() => setExpanded(true)}
-                sx={{ opacity: 0, transition: 'opacity 0.15s ease', '&:focus-visible': { opacity: 1 } }}
-              >
-                <FullscreenIcon fontSize="small" />
-              </IconButton>
-            )
-          }
-          sx={{ pb: 0 }}
-        />
-        ) : undefined}
+        {title ? <CardHeader title={title} action={expandButton} sx={{ pb: 0 }} /> : null}
         <CardContent
           sx={{
             flex: 1,
@@ -77,6 +86,7 @@ export function PanelContainer({
         >
           {children}
         </CardContent>
+        {!title && expandButton}
       </Card>
       {expandable && (
         <Dialog open={expanded} onClose={() => setExpanded(false)} fullScreen>
