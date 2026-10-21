@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { alpha, useTheme } from '@mui/material/styles';
+import { alpha, darken, lighten, useTheme } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
 import { Button, Typography } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -15,6 +16,7 @@ import {
   type ChartEvent,
   type ActiveElement,
 } from 'chart.js';
+import ChartDataLabels, { type Context as DataLabelsContext } from 'chartjs-plugin-datalabels';
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
 import type { ChartPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
@@ -24,7 +26,43 @@ import { rowMatchesFieldFilter, CHART_SOURCE_FIELD, type FieldFilterValue } from
 import { groupAndAggregate, describeAggregation } from '../dataSources/aggregate';
 import { useMapHandle } from '../map/registry';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, ChartDataLabels);
+
+// One distinct color per category (bar/pie/histogram only - a single connected line/scatter
+// doesn't read as "categories" the same way) instead of repeating one flat color, so individual
+// classes/slices stay visually distinguishable without relying solely on a legend. Hue-rotated
+// around the color wheel rather than theme-derived, since an arbitrary number of categories can't
+// all be guaranteed to look good next to a single brand color anyway.
+function getCategoryColor(index: number, count: number, alphaValue = 0.75): string {
+  const hue = count > 0 ? Math.round((index * 360) / count) : 0;
+  return `hsla(${hue}, 65%, 55%, ${alphaValue})`;
+}
+
+// While something's selected, the selected category keeps ITS OWN color but darkened/more solid,
+// and every other category fades (lightened + more transparent) instead of all being replaced by
+// one flat highlight color - `darken`/`lighten` work on any valid CSS color string (not just the
+// hsla ones this file generates), so a custom hex color from `panel.colors` gets the same
+// treatment. `isSelected`/`hasSelection` mirrors the existing single/multi-select channel state.
+function emphasizeColor(baseColor: string, isSelected: boolean, hasSelection: boolean): string {
+  if (!hasSelection) return baseColor;
+  return isSelected ? darken(baseColor, 0.25) : alpha(lighten(baseColor, 0.35), 0.35);
+}
+
+// Pie's auto-generated one-entry-per-slice legend gets crowded above the chart with more than a
+// few categories - default it to the side (stacks vertically) instead of Chart.js's own 'top'
+// default; other chart types keep that default (legend = one entry for the whole dataset there).
+function getLegendPosition(panel: ChartPanelConfig): 'top' | 'right' | 'bottom' | 'left' | 'none' {
+  return panel.legendPosition ?? (panel.chartType === 'pie' ? 'right' : 'top');
+}
+
+function getDataLabelsOptions(panel: ChartPanelConfig, theme: Theme) {
+  return {
+    display: panel.chartType === 'pie' && Boolean(panel.showSliceLabels),
+    color: theme.palette.getContrastText(theme.palette.grey[700]),
+    font: { weight: 'bold' as const, size: 11 },
+    formatter: (_value: unknown, context: DataLabelsContext) => String(context.chart.data.labels?.[context.dataIndex] ?? ''),
+  };
+}
 
 
 interface ChartPanelProps {
@@ -36,10 +74,8 @@ type Row = Record<string, unknown>;
 
 export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
   const theme = useTheme();
-  // Highlights the bar/slice matching the shared filter channel's current selection for this
-  // chart's own field - derived from the theme so a custom theme's colors show through here too.
+  // Flat fallback color for 'line' (no per-category palette there, see colorFor below).
   const defaultColor = alpha(theme.palette.primary.main, 0.5);
-  const selectedColor = alpha(theme.palette.warning.main, 0.9);
   const { data, isLoading, error } = useDataSource(panel.dataSource, dataSources);
   // The emit channel (its own click-to-select) and any listened channels (e.g. a shared filter
   // panel's combined selection, or a legend's own separate channel) are merged so this chart
@@ -116,7 +152,17 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
   // TODO: real binning once the query/transform layer exists; treated as a bar chart for now
   const { labelKey, valueKey } = grouped ? {} : pickAxisKeys(displayRows);
   const selectedValues = (groupByField && filterValue?.[groupByField]) || [];
+  const hasSelection = selectedValues.length > 0;
   const aggregationLabel = describeAggregation(panel.aggregation ?? 'count', panel.valueField);
+  // A single connected line doesn't read as distinct "categories" the same way bar/pie do, so it
+  // keeps one flat base color instead of a per-point palette. `panel.colors` lets an author
+  // override a category's auto-assigned base color by its raw label value; `emphasizeColor` then
+  // darkens the selected one (keeping its own hue) and fades every other category, instead of
+  // replacing the selected one with one flat unrelated highlight color.
+  const colorFor = (label: string, index: number, count: number, isSelected: boolean) => {
+    const base = panel.colors?.[label] ?? (panel.chartType === 'line' ? defaultColor : getCategoryColor(index, count));
+    return emphasizeColor(base, isSelected, hasSelection);
+  };
   const chartData = grouped
     ? {
         labels: grouped.labels,
@@ -124,7 +170,7 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
           {
             label: panel.title ?? groupByField,
             data: grouped.values,
-            backgroundColor: grouped.labels.map((label) => (selectedValues.includes(label) ? selectedColor : defaultColor)),
+            backgroundColor: grouped.labels.map((label, i) => colorFor(label, i, grouped.labels.length, selectedValues.includes(label))),
           },
         ],
       }
@@ -134,13 +180,21 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
           {
             label: panel.title ?? valueKey ?? 'value',
             data: displayRows.map((row) => (valueKey ? Number(row[valueKey]) || 0 : 1)),
+            backgroundColor: displayRows.map((row, i) =>
+              colorFor(labelKey ? String(row[labelKey]) : '', i, displayRows.length, false),
+            ),
           },
         ],
       };
+  const legendPosition = getLegendPosition(panel);
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     onClick: handleClick,
+    plugins: {
+      legend: { display: legendPosition !== 'none', position: legendPosition === 'none' ? undefined : legendPosition },
+      datalabels: getDataLabelsOptions(panel, theme),
+    },
     // Pie has no axes - only bar/line/histogram get axis titles (x = the grouped/label field, y = the aggregation).
     ...(panel.chartType !== 'pie' && {
       scales: {
@@ -156,15 +210,16 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
   }`;
 
   return (
-    <PanelContainer title={panel.title}>
-      {selectedValues.length > 0 && (
-        <Button size="small" onClick={() => groupByField && setField(groupByField, [])} sx={{ alignSelf: 'flex-start', mb: 1 }}>
-          Clear selection
-        </Button>
-      )}
-      {/* flex:1/minHeight:0 gives the chart its own measurable box independent of the Clear
-          button above it - Chart.js sizes its canvas off this wrapper (its immediate
-          parentNode), not the outer CardContent, so the button doesn't eat into the chart. */}
+    <PanelContainer
+      title={panel.title}
+      headerAction={
+        selectedValues.length > 0 && (
+          <Button size="small" onClick={() => groupByField && setField(groupByField, [])}>
+            Clear selection
+          </Button>
+        )
+      }
+    >
       <div style={{ flex: 1, minHeight: 0 }}>
         {panel.chartType === 'line' && <Line aria-label={chartDescription} data={chartData} options={options} />}
         {panel.chartType === 'pie' && <Pie aria-label={chartDescription} data={chartData} options={options} />}
@@ -214,8 +269,6 @@ interface MultiSourceChartProps {
 // - the chart itself only ever displays the count.
 function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps) {
   const theme = useTheme();
-  const defaultColor = alpha(theme.palette.primary.main, 0.5);
-  const selectedColor = alpha(theme.palette.warning.main, 0.9);
   const [results, setResults] = useState<Record<string, SourceResult>>({});
 
   // Selection is routed through the SAME linking-channel system every other panel uses, via a
@@ -261,14 +314,22 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
       {
         label: panel.title ?? 'Count',
         data: values,
-        backgroundColor: sources.map((s) => (selectedSourceIds.includes(s.dataSourceId) ? selectedColor : defaultColor)),
+        backgroundColor: sources.map((s, i) => {
+          const base = s.color ?? getCategoryColor(i, sources.length);
+          return emphasizeColor(base, selectedSourceIds.includes(s.dataSourceId), selectedSourceIds.length > 0);
+        }),
       },
     ],
   };
+  const legendPosition = getLegendPosition(panel);
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     onClick: handleClick,
+    plugins: {
+      legend: { display: legendPosition !== 'none', position: legendPosition === 'none' ? undefined : legendPosition },
+      datalabels: getDataLabelsOptions(panel, theme),
+    },
     ...(panel.chartType !== 'pie' && {
       scales: { x: { title: { display: true, text: 'Data source' } }, y: { title: { display: true, text: 'Count' } } },
     }),
@@ -276,7 +337,16 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
   const chartDescription = `${panel.title ?? 'Chart'}: ${panel.chartType} chart of feature counts by data source`;
 
   return (
-    <PanelContainer title={panel.title}>
+    <PanelContainer
+      title={panel.title}
+      headerAction={
+        selectedSourceIds.length > 0 && (
+          <Button size="small" onClick={() => setField(CHART_SOURCE_FIELD, [])}>
+            Clear selection
+          </Button>
+        )
+      }
+    >
       {sources.map((s) => (
         <SourceRowsFetcher key={s.dataSourceId} source={s} dataSources={dataSources} onResult={handleResult} />
       ))}
@@ -296,20 +366,13 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
         </Typography>
       )}
       {!isLoading && !hasError && (
-        <>
-          {selectedSourceIds.length > 0 && (
-            <Button size="small" onClick={() => setField(CHART_SOURCE_FIELD, [])} sx={{ alignSelf: 'flex-start', mb: 1 }}>
-              Clear selection
-            </Button>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {panel.chartType === 'line' && <Line aria-label={chartDescription} data={chartData} options={options} />}
+          {panel.chartType === 'pie' && <Pie aria-label={chartDescription} data={chartData} options={options} />}
+          {(panel.chartType === 'bar' || panel.chartType === 'histogram') && (
+            <Bar aria-label={chartDescription} data={chartData} options={options} />
           )}
-          <div style={{ flex: 1, minHeight: 0 }}>
-            {panel.chartType === 'line' && <Line aria-label={chartDescription} data={chartData} options={options} />}
-            {panel.chartType === 'pie' && <Pie aria-label={chartDescription} data={chartData} options={options} />}
-            {(panel.chartType === 'bar' || panel.chartType === 'histogram') && (
-              <Bar aria-label={chartDescription} data={chartData} options={options} />
-            )}
-          </div>
-        </>
+        </div>
       )}
     </PanelContainer>
   );

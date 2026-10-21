@@ -59,7 +59,10 @@ interface ChartPanelConfig {
   field?: string; // categorical field to group rows by
   aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max'; // defaults to 'count'
   valueField?: string; // numeric field to aggregate; required (and only used) when aggregation isn't 'count'
-  sources?: { dataSourceId: string; label?: string }[]; // multi-source mode, see below
+  sources?: { dataSourceId: string; label?: string; color?: string }[]; // multi-source mode, see below
+  colors?: Record<string, string>; // per-category color overrides, keyed by the field's raw value
+  legendPosition?: 'top' | 'right' | 'bottom' | 'left' | 'none'; // defaults to 'right' for pie, 'top' otherwise
+  showSliceLabels?: boolean; // 'pie' only - labels each slice directly with its category name
 }
 ```
 
@@ -72,6 +75,18 @@ interface ChartPanelConfig {
   population per region rather than a feature count per region).
 - `scatter` ignores `field`/`aggregation` - it needs exactly 2 numeric fields in the data and
   plots them directly against each other (auto-detected from the row shape).
+- Each category (bar/slice) gets its own distinct color automatically - `bar`/`pie`/`histogram`
+  only; `line`/`scatter` keep one flat color, since a single connected line/point cloud doesn't
+  read as separate "categories" the same way. `colors` overrides specific categories by their
+  exact raw `field` value (e.g. `{ "Natural": "#4caf50" }`) - any category not listed still gets
+  its own auto-assigned color. Ignored in multi-source mode (use `sources[].color` there instead).
+- `legendPosition`/`showSliceLabels`: a pie chart's auto-generated one-entry-per-slice legend can
+  get crowded above the chart with many categories - `legendPosition` moves it to a side (stacks
+  vertically) or hides it (`'none'`), and `showSliceLabels` labels each slice directly as an
+  alternative (most useful combined with `legendPosition: 'none'`). Both can be combined however
+  you like (e.g. slice labels AND a side legend). Only `'pie'` honors `showSliceLabels`; other
+  chart types ignore it (but still honor `legendPosition`, using Chart.js's own `'top'` default
+  unless overridden).
 - Clicking a bar/slice toggles that category in/out of the selection (multiple can be selected at
   once) in whichever channel this panel `emits` to (see [Linking](guide/linking.md)) - clicking an
   already-selected one again removes just that one. A "Clear selection" button appears whenever
@@ -90,7 +105,7 @@ set, `dataSource`/`field`/`aggregation`/`valueField` are ignored; not supported 
   "chartType": "bar",
   "sources": [
     { "dataSourceId": "sublayer-a" },
-    { "dataSourceId": "sublayer-b", "label": "Custom bar label" }
+    { "dataSourceId": "sublayer-b", "label": "Custom bar label", "color": "#4caf50" }
   ]
 }
 ```
@@ -99,6 +114,8 @@ Clicking toggles that source in/out of the selection, emitted on this panel's ch
 reserved field (not a real row field) carrying the selected data source ids. A `map` panel that
 `listensTo` the same channel will show only the selected sources' layers (hiding every other
 `map-layer`-backed layer it owns), and show all again once the selection is cleared/empty.
+
+Each entry's `color` overrides its auto-assigned color, same as the single-source `colors` map above.
 
 Each entry's bar label defaults to that data source's underlying map layer name (for `map-layer`
 sources) or its id otherwise - `label` overrides this per entry.

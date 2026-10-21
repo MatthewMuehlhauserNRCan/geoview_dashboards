@@ -46,7 +46,20 @@ export interface ChartPanelConfig extends BasePanelConfig {
   // pulling its OWN data source and counting its rows - e.g. one bar per sublayer of a group
   // layer. Mutually exclusive with `dataSource`/`field` (when set, those are ignored). Not
   // supported for chartType 'scatter' (which needs two numeric fields on one row set).
-  sources?: { dataSourceId: string; label?: string }[];
+  sources?: { dataSourceId: string; label?: string; color?: string }[];
+  // Overrides the auto-assigned color for specific category values (keyed by the `field`'s raw
+  // value, e.g. `{ "Natural": "#4caf50" }`) - any category not listed here still gets its own
+  // auto-assigned color. Ignored in multi-source mode (use `sources[].color` there instead).
+  colors?: Record<string, string>;
+  // Where the built-in per-category legend appears, or 'none' to hide it entirely. Defaults to
+  // 'right' (stacked vertically) for 'pie' - its auto-generated one-entry-per-slice legend gets
+  // crowded above the chart with more than a few categories; other chart types default to 'top'
+  // (one entry for the whole dataset, same as Chart.js's own default).
+  legendPosition?: 'top' | 'right' | 'bottom' | 'left' | 'none';
+  // 'pie' only: labels each slice directly with its category name, as an alternative (or
+  // addition) to the legend - most useful with `legendPosition: 'none'` when there are many
+  // categories and a long side legend is still more than wanted.
+  showSliceLabels?: boolean;
 }
 
 export interface StatPanelConfig extends BasePanelConfig {

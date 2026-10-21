@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Card, CardContent, CardHeader, Dialog, IconButton } from '@mui/material';
+import { Box, Card, CardContent, CardHeader, Dialog, IconButton } from '@mui/material';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
@@ -19,6 +19,12 @@ interface PanelContainerProps {
   // rounding between nested percentage heights, which can otherwise trigger a permanent,
   // unnecessary scrollbar even when the content clearly fits.
   centerContent?: boolean;
+  // An extra action (e.g. a conditionally-shown "Clear selection" button) placed next to the
+  // expand button - in the header row when `title` is set, or floating over the content's corner
+  // alongside the expand button otherwise. Kept OUT of the normal content flow specifically so a
+  // panel whose body resizes based on this action's visibility (e.g. a chart canvas) doesn't
+  // visibly jump/resize every time it appears or disappears.
+  headerAction?: ReactNode;
 }
 
 export function PanelContainer({
@@ -28,6 +34,7 @@ export function PanelContainer({
   bodyOverflow = 'auto',
   disablePadding = false,
   centerContent = false,
+  headerAction,
 }: PanelContainerProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -69,7 +76,22 @@ export function PanelContainer({
           '&:hover .panel-expand-button': { opacity: 1 },
         }}
       >
-        {title ? <CardHeader title={title} action={expandButton} sx={{ pb: 0 }} /> : null}
+        {title ? (
+          <CardHeader
+            title={title}
+            action={
+              headerAction ? (
+                <>
+                  {headerAction}
+                  {expandButton}
+                </>
+              ) : (
+                expandButton
+              )
+            }
+            sx={{ pb: 0 }}
+          />
+        ) : null}
         <CardContent
           sx={{
             flex: 1,
@@ -86,6 +108,20 @@ export function PanelContainer({
         >
           {children}
         </CardContent>
+        {!title && headerAction && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 4,
+              right: expandable ? 44 : 4,
+              zIndex: 1,
+              bgcolor: 'background.paper',
+              borderRadius: 1,
+            }}
+          >
+            {headerAction}
+          </Box>
+        )}
         {!title && expandButton}
       </Card>
       {expandable && (

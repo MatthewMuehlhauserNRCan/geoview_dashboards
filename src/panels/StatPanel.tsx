@@ -122,6 +122,11 @@ function Gauge({
           rotation: -90,
           plugins: {
             tooltip: { enabled: false },
+            // chartjs-plugin-datalabels is registered globally (ChartJS is one shared registry
+            // across the whole app, see ChartPanel.tsx) - without this, it defaults to labeling
+            // both doughnut segments with their raw fraction values, on top of the one real label
+            // below (the doughnutLabel annotation) that's actually wanted here.
+            datalabels: { display: false },
             annotation: {
               annotations: {
                 label: {

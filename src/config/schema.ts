@@ -38,6 +38,7 @@ const mapPanelFields = z
 const chartSourceSchema = z.object({
   dataSourceId: z.string(),
   label: z.string().optional(),
+  color: z.string().optional(),
 });
 
 const chartPanelFields = z.object({
@@ -48,6 +49,9 @@ const chartPanelFields = z.object({
   aggregation: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
   valueField: z.string().optional(),
   sources: z.array(chartSourceSchema).optional(),
+  colors: z.record(z.string(), z.string()).optional(),
+  legendPosition: z.enum(['top', 'right', 'bottom', 'left', 'none']).optional(),
+  showSliceLabels: z.boolean().optional(),
 });
 
 const statGaugeSchema = z.object({

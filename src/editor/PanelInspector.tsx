@@ -28,6 +28,7 @@ import { LEAF_PANEL_TYPES, PANEL_TYPE_LABELS, createDefaultLeafPanel } from './p
 import { useEditorStore } from './store';
 import { AddPanelDialog } from './AddPanelDialog';
 import { ChartSourcesDialog } from './ChartSourcesDialog';
+import { ChartColorsDialog } from './ChartColorsDialog';
 import { generateId } from './idUtils';
 
 interface MapPanelOption {
@@ -54,6 +55,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   );
   const [configError, setConfigError] = useState<string | undefined>();
   const [chartSourcesDialogOpen, setChartSourcesDialogOpen] = useState(false);
+  const [chartColorsDialogOpen, setChartColorsDialogOpen] = useState(false);
 
   const commitConfigText = () => {
     try {
@@ -67,6 +69,22 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
 
   const selectedDataSource = dataSources.find((ds) => ds.id === leafPanel.dataSource);
   const isChartMultiSource = leafPanel.type === 'chart' && Boolean(leafPanel.sources?.length);
+  const chartSourceIds =
+    leafPanel.type === 'chart'
+      ? (leafPanel.sources?.length ? leafPanel.sources.map((s) => s.dataSourceId) : leafPanel.dataSource ? [leafPanel.dataSource] : [])
+      : [];
+
+  // One control covers both "a single chart grouped by a field" and "one value per data source" -
+  // picking 1 data source behaves like the former, picking several switches to the latter
+  // (preserving any labels already set for ids that stay selected).
+  const handleChartDataSourceChange = (next: string[]) => {
+    onChange((p) => {
+      if (p.type !== 'chart') return p;
+      if (next.length <= 1) return { ...p, dataSource: next[0], sources: undefined };
+      const existing = p.sources ?? [];
+      return { ...p, dataSource: undefined, sources: next.map((id) => existing.find((s) => s.dataSourceId === id) ?? { dataSourceId: id }) };
+    });
+  };
 
   return (
     <Stack spacing={2}>
@@ -78,27 +96,54 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
         fullWidth
         onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
       />
-      <FormControl size="small" fullWidth disabled={isChartMultiSource}>
-        <InputLabel>Data source</InputLabel>
-        <Select
-          label="Data source"
-          value={leafPanel.dataSource ?? ''}
-          SelectDisplayProps={{ title: selectedDataSource ? `${selectedDataSource.id} (${selectedDataSource.type})` : '' }}
-          onChange={(e) => onChange((p) => ({ ...p, dataSource: e.target.value || undefined }))}
-        >
-          <MenuItem value="">None</MenuItem>
-          {dataSources.map((ds) => (
-            <MenuItem key={ds.id} value={ds.id} title={`${ds.id} (${ds.type})`}>
-              {ds.id} ({ds.type})
-            </MenuItem>
-          ))}
-        </Select>
-        {isChartMultiSource && (
+      {leafPanel.type === 'chart' ? (
+        <FormControl size="small" fullWidth>
+          <InputLabel>Data source(s)</InputLabel>
+          <Select
+            multiple
+            label="Data source(s)"
+            value={chartSourceIds}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                {(selected as string[]).map((id) => (
+                  <Chip key={id} label={id} size="small" />
+                ))}
+              </Box>
+            )}
+            onChange={(e) => {
+              const value = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+              handleChartDataSourceChange(value);
+            }}
+          >
+            {dataSources.map((ds) => (
+              <MenuItem key={ds.id} value={ds.id} title={`${ds.id} (${ds.type})`} selected={chartSourceIds.includes(ds.id)}>
+                {ds.id} ({ds.type})
+              </MenuItem>
+            ))}
+          </Select>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-            Ignored while multi-source mode (below) is on - this chart pulls from each of those data sources instead.
+            Pick one for a single chart grouped by Field (below), or several for one value per data
+            source (e.g. one bar per sublayer) - not supported for scatter.
           </Typography>
-        )}
-      </FormControl>
+        </FormControl>
+      ) : (
+        <FormControl size="small" fullWidth disabled={isChartMultiSource}>
+          <InputLabel>Data source</InputLabel>
+          <Select
+            label="Data source"
+            value={leafPanel.dataSource ?? ''}
+            SelectDisplayProps={{ title: selectedDataSource ? `${selectedDataSource.id} (${selectedDataSource.type})` : '' }}
+            onChange={(e) => onChange((p) => ({ ...p, dataSource: e.target.value || undefined }))}
+          >
+            <MenuItem value="">None</MenuItem>
+            {dataSources.map((ds) => (
+              <MenuItem key={ds.id} value={ds.id} title={`${ds.id} (${ds.type})`}>
+                {ds.id} ({ds.type})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
 
 
       <FormControl size="small" fullWidth disabled={channels.length === 0}>
@@ -120,7 +165,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           }}
         >
           {channels.map((c) => (
-            <MenuItem key={c.id} value={c.id}>
+            <MenuItem key={c.id} value={c.id} selected={(leafPanel.interactions?.emits ?? []).includes(c.id)}>
               {c.id}
             </MenuItem>
           ))}
@@ -145,7 +190,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           }}
         >
           {channels.map((c) => (
-            <MenuItem key={c.id} value={c.id}>
+            <MenuItem key={c.id} value={c.id} selected={(leafPanel.interactions?.listensTo ?? []).includes(c.id)}>
               {c.id}
             </MenuItem>
           ))}
@@ -213,15 +258,60 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               <MenuItem value="histogram">Histogram</MenuItem>
             </Select>
           </FormControl>
+          {leafPanel.chartType === 'pie' && (
+            <>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Legend position</InputLabel>
+                <Select
+                  label="Legend position"
+                  value={leafPanel.legendPosition ?? 'right'}
+                  onChange={(e) =>
+                    onChange((p) => (p.type === 'chart' ? { ...p, legendPosition: e.target.value as typeof p.legendPosition } : p))
+                  }
+                >
+                  <MenuItem value="right">Right (stacked vertically)</MenuItem>
+                  <MenuItem value="left">Left (stacked vertically)</MenuItem>
+                  <MenuItem value="top">Top</MenuItem>
+                  <MenuItem value="bottom">Bottom</MenuItem>
+                  <MenuItem value="none">Hidden</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControlLabel
+                label="Label each slice directly"
+                control={
+                  <Checkbox
+                    checked={Boolean(leafPanel.showSliceLabels)}
+                    onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, showSliceLabels: e.target.checked } : p))}
+                  />
+                }
+              />
+            </>
+          )}
           <TextField
             label="Field (categorical field to aggregate by)"
             value={leafPanel.field ?? ''}
             size="small"
             fullWidth
             disabled={Boolean(leafPanel.sources?.length)}
-            helperText={leafPanel.sources?.length ? 'Ignored while multi-source mode (below) is on.' : undefined}
+            helperText={leafPanel.sources?.length ? 'Ignored while multiple data sources are selected above.' : undefined}
             onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, field: e.target.value || undefined } : p))}
           />
+          {Boolean(leafPanel.field) && !leafPanel.sources?.length && (
+            <Box>
+              <Button size="small" variant="outlined" startIcon={<DatasetIcon />} onClick={() => setChartColorsDialogOpen(true)}>
+                Customize colors{leafPanel.colors && Object.keys(leafPanel.colors).length ? ` (${Object.keys(leafPanel.colors).length})` : ''}
+              </Button>
+              <ChartColorsDialog
+                key={String(chartColorsDialogOpen)}
+                open={chartColorsDialogOpen}
+                onClose={() => setChartColorsDialogOpen(false)}
+                colors={leafPanel.colors ?? {}}
+                onChange={(next) =>
+                  onChange((p) => (p.type === 'chart' ? { ...p, colors: Object.keys(next).length ? next : undefined } : p))
+                }
+              />
+            </Box>
+          )}
           <FormControl size="small" fullWidth disabled={Boolean(leafPanel.sources?.length)}>
             <InputLabel>Aggregation</InputLabel>
             <Select
@@ -250,35 +340,19 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             />
           )}
 
-          <Divider />
-
-          <Box>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<DatasetIcon />}
-              disabled={leafPanel.chartType === 'scatter'}
-              onClick={() => setChartSourcesDialogOpen(true)}
-            >
-              Multi-source {leafPanel.sources?.length ? `(${leafPanel.sources.length})` : ''}
-            </Button>
-            {leafPanel.chartType === 'scatter' ? (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Not available for scatter charts (need two numeric fields on one row set).
-              </Typography>
-            ) : (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Optional: one value per data source instead of grouping the single data source above.
-              </Typography>
-            )}
-          </Box>
-          <ChartSourcesDialog
-            open={chartSourcesDialogOpen}
-            onClose={() => setChartSourcesDialogOpen(false)}
-            dataSources={dataSources}
-            sources={leafPanel.sources ?? []}
-            onChange={(next) => onChange((p) => (p.type === 'chart' ? { ...p, sources: next.length ? next : undefined } : p))}
-          />
+          {Boolean(leafPanel.sources?.length) && (
+            <Box>
+              <Button size="small" variant="outlined" startIcon={<DatasetIcon />} onClick={() => setChartSourcesDialogOpen(true)}>
+                Customize labels/colors
+              </Button>
+              <ChartSourcesDialog
+                open={chartSourcesDialogOpen}
+                onClose={() => setChartSourcesDialogOpen(false)}
+                sources={leafPanel.sources ?? []}
+                onChange={(next) => onChange((p) => (p.type === 'chart' ? { ...p, sources: next } : p))}
+              />
+            </Box>
+          )}
         </Stack>
       )}
 
