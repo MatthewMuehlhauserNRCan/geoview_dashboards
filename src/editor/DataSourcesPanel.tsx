@@ -95,9 +95,14 @@ function DataSourceForm({ value, onChange }: DataSourceFormProps) {
         <>
           <FormControl size="small" fullWidth>
             <InputLabel>Map panel</InputLabel>
-            <Select label="Map panel" value={value.mapPanelId} onChange={(e) => onChange({ ...value, mapPanelId: e.target.value, layerId: '' })}>
+            <Select
+              label="Map panel"
+              value={value.mapPanelId}
+              SelectDisplayProps={{ title: mapPanels.find((p) => p.id === value.mapPanelId)?.title ?? value.mapPanelId }}
+              onChange={(e) => onChange({ ...value, mapPanelId: e.target.value, layerId: '' })}
+            >
               {mapPanels.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
+                <MenuItem key={p.id} value={p.id} title={p.title || p.id}>
                   {p.title || p.id}
                 </MenuItem>
               ))}
@@ -111,12 +116,17 @@ function DataSourceForm({ value, onChange }: DataSourceFormProps) {
           {mapHandle && (
             <FormControl size="small" fullWidth>
               <InputLabel>Layer</InputLabel>
-              <Select label="Layer" value={value.layerId} onChange={(e) => onChange({ ...value, layerId: e.target.value })}>
+              <Select
+                label="Layer"
+                value={value.layerId}
+                SelectDisplayProps={{ title: mapHandle.listLayers().find((l) => l.id === value.layerId)?.name ?? '' }}
+                onChange={(e) => onChange({ ...value, layerId: e.target.value })}
+              >
                 {mapHandle
                   .listLayers()
                   .filter((l) => l.queryable)
                   .map((l) => (
-                    <MenuItem key={l.id} value={l.id}>
+                    <MenuItem key={l.id} value={l.id} title={l.name}>
                       {l.name}
                     </MenuItem>
                   ))}
@@ -176,13 +186,14 @@ function AddMapLayersDialog({ open, onClose }: { open: boolean; onClose: () => v
             <Select
               label="Map panel"
               value={mapPanelId}
+              SelectDisplayProps={{ title: mapPanels.find((p) => p.id === mapPanelId)?.title ?? mapPanelId }}
               onChange={(e) => {
                 setMapPanelId(e.target.value);
                 setSelectedLayerIds(new Set());
               }}
             >
               {mapPanels.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
+                <MenuItem key={p.id} value={p.id} title={p.title || p.id}>
                   {p.title || p.id}
                 </MenuItem>
               ))}

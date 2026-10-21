@@ -42,6 +42,11 @@ export interface ChartPanelConfig extends BasePanelConfig {
   aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max';
   // numeric field to aggregate; required (and only used) when aggregation isn't 'count'.
   valueField?: string;
+  // Alternative to `dataSource`/`field`-based grouping: one bar/slice per entry here, each
+  // pulling its OWN data source and counting its rows - e.g. one bar per sublayer of a group
+  // layer. Mutually exclusive with `dataSource`/`field` (when set, those are ignored). Not
+  // supported for chartType 'scatter' (which needs two numeric fields on one row set).
+  sources?: { dataSourceId: string; label?: string }[];
 }
 
 export interface StatPanelConfig extends BasePanelConfig {
@@ -183,7 +188,11 @@ export type DataSourceConfig = RestJsonDataSourceConfig | StaticFileDataSourceCo
 export interface LinkingChannel {
   id: string;
   type: 'filter';
-  field: string;
+  // Freeform author note on what this channel is for - purely documentation (shown in the
+  // editor), never read at runtime. A channel can carry MANY different fields at once (it's
+  // just a shared `{field: values[]}` bag - see FieldFilterValue) - this is NOT a binding to one
+  // field, so don't rely on it to mean "only this field is ever pushed onto this channel".
+  description?: string;
 }
 
 export interface LinkingConfig {
@@ -258,10 +267,20 @@ export interface TitleImageConfig {
 export interface TitleMenuOption {
   id: string;
   label: string;
+  // Applied when this option is clicked: sets each listed channel's field to these values, same
+  // shape a filter panel's own selection would push. Options in the same menu behave like a radio
+  // group - selecting one clears every OTHER option's filter fields first (never combined),
+  // clicking the active option again clears its own.
+  filters?: TitleMenuOptionFilter[];
 }
 
-// Shell only for now - the author configures the option list, but what selecting one actually
-// does (filter data, switch a view, etc.) isn't wired up yet.
+export interface TitleMenuOptionFilter {
+  channel: string;
+  field: string;
+  values: string[];
+}
+
+// The author configures the option list; clicking one applies its `filters` (see TitleMenuOption).
 export interface TitleOptionsMenuConfig {
   icon?: TitleImageConfig;
   label?: string;

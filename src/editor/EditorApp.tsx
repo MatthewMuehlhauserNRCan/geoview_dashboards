@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -24,6 +25,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import StorageIcon from '@mui/icons-material/Storage';
+import LinkIcon from '@mui/icons-material/Link';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
 import PaletteIcon from '@mui/icons-material/Palette';
 import type { PanelConfig } from '../config/types';
@@ -67,6 +70,8 @@ export function EditorApp() {
   const [headerDialogOpen, setHeaderDialogOpen] = useState(false);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [dataSourcesDialogOpen, setDataSourcesDialogOpen] = useState(false);
+  const [linkingDialogOpen, setLinkingDialogOpen] = useState(false);
+  const [linkingHelpOpen, setLinkingHelpOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handlePick = (type: PanelConfig['type']) => {
@@ -120,6 +125,9 @@ export function EditorApp() {
           <Box sx={{ flex: 1 }} />
           <Button size="small" startIcon={<StorageIcon />} onClick={() => setDataSourcesDialogOpen(true)}>
             Data sources
+          </Button>
+          <Button size="small" startIcon={<LinkIcon />} onClick={() => setLinkingDialogOpen(true)}>
+            Linking
           </Button>
           <Button size="small" startIcon={<PaletteIcon />} onClick={() => setThemeDialogOpen(true)}>
             Theme
@@ -209,7 +217,6 @@ export function EditorApp() {
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <Box sx={{ width: 320, borderRight: '1px solid', borderColor: 'divider', overflow: 'auto', p: 1 }}>
           <Stack spacing={2}>
-            <LinkingPanel />
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                 Title panel ({page.label})
@@ -260,6 +267,43 @@ export function EditorApp() {
         </DialogActions>
       </Dialog>
 
+      <Dialog
+        open={linkingDialogOpen}
+        onClose={() => {
+          setLinkingDialogOpen(false);
+          setLinkingHelpOpen(false);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          Linking channels
+          <IconButton size="small" onClick={() => setLinkingHelpOpen((open) => !open)} aria-label="How linking channels work">
+            <HelpOutlineIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {linkingHelpOpen && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              A channel is a named shared value panels publish to and read from - think of it as a
+              labeled mailbox, not a single field. It carries a set of selected values PER FIELD
+              (e.g. <code>{'{ "Symbol": ["Natural"] }'}</code>), and any number of panels can each
+              contribute their OWN differently-named field onto the same channel at once - there's
+              no need for "one channel per field" or "one channel per data source". A panel joins a
+              channel via its own Emits/Listens To settings in its inspector, not anything here -
+              this dialog only manages the shared channel ids themselves (plus an optional note for
+              your own reference, not read by the app). Only create a SEPARATE channel when two
+              contributors' values would genuinely conflict if merged - e.g. a legend's display/alias
+              values vs. the map's own raw filter values (see the Linking guide for that case).
+            </Alert>
+          )}
+          <LinkingPanel />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLinkingDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={themeDialogOpen} onClose={() => setThemeDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Theme colors</DialogTitle>
         <DialogContent>
@@ -273,7 +317,7 @@ export function EditorApp() {
       <Dialog open={headerDialogOpen} onClose={() => setHeaderDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Dashboard header</DialogTitle>
         <DialogContent>
-          <TitleElementForm value={config.titleElement} onChange={setTitleElement} />
+          <TitleElementForm value={config.titleElement} channels={config.linking?.channels ?? []} onChange={setTitleElement} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setHeaderDialogOpen(false)}>Close</Button>

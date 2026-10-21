@@ -35,6 +35,11 @@ const mapPanelFields = z
     path: ['config'],
   });
 
+const chartSourceSchema = z.object({
+  dataSourceId: z.string(),
+  label: z.string().optional(),
+});
+
 const chartPanelFields = z.object({
   ...baseFields,
   type: z.literal('chart'),
@@ -42,6 +47,7 @@ const chartPanelFields = z.object({
   field: z.string().optional(),
   aggregation: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
   valueField: z.string().optional(),
+  sources: z.array(chartSourceSchema).optional(),
 });
 
 const statGaugeSchema = z.object({
@@ -175,7 +181,7 @@ const dataSourceSchema = z.discriminatedUnion('type', [
 const linkingChannelSchema = z.object({
   id: z.string(),
   type: z.literal('filter'),
-  field: z.string(),
+  description: z.string().optional(),
 });
 
 const linkingSchema = z.object({ channels: z.array(linkingChannelSchema) });
@@ -194,9 +200,16 @@ const titleImageSchema = z.object({
   href: z.string().optional(),
 });
 
+const titleMenuOptionFilterSchema = z.object({
+  channel: z.string(),
+  field: z.string(),
+  values: z.array(z.string()),
+});
+
 const titleMenuOptionSchema = z.object({
   id: z.string(),
   label: z.string(),
+  filters: z.array(titleMenuOptionFilterSchema).optional(),
 });
 
 const titleOptionsMenuSchema = z.object({

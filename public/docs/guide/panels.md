@@ -59,6 +59,7 @@ interface ChartPanelConfig {
   field?: string; // categorical field to group rows by
   aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max'; // defaults to 'count'
   valueField?: string; // numeric field to aggregate; required (and only used) when aggregation isn't 'count'
+  sources?: { dataSourceId: string; label?: string }[]; // multi-source mode, see below
 }
 ```
 
@@ -71,10 +72,39 @@ interface ChartPanelConfig {
   population per region rather than a feature count per region).
 - `scatter` ignores `field`/`aggregation` - it needs exactly 2 numeric fields in the data and
   plots them directly against each other (auto-detected from the row shape).
-- Clicking a bar/slice toggles that category on/off in whichever channel this panel `emits` to
-  (see [Linking](guide/linking.md)) - clicking the same one again clears the selection.
+- Clicking a bar/slice toggles that category in/out of the selection (multiple can be selected at
+  once) in whichever channel this panel `emits` to (see [Linking](guide/linking.md)) - clicking an
+  already-selected one again removes just that one. A "Clear selection" button appears whenever
+  anything is selected.
+
+### Multi-source mode
+
+Instead of grouping rows from ONE `dataSource` by a field, `sources` renders one bar/slice per
+**data source**, each showing that source's row count - useful for e.g. one bar per sublayer of a
+group layer (several `map-layer` data sources pointed at the same map panel). When `sources` is
+set, `dataSource`/`field`/`aggregation`/`valueField` are ignored; not supported for `scatter`.
+
+```json
+{
+  "type": "chart",
+  "chartType": "bar",
+  "sources": [
+    { "dataSourceId": "sublayer-a" },
+    { "dataSourceId": "sublayer-b", "label": "Custom bar label" }
+  ]
+}
+```
+
+Clicking toggles that source in/out of the selection, emitted on this panel's channel as a
+reserved field (not a real row field) carrying the selected data source ids. A `map` panel that
+`listensTo` the same channel will show only the selected sources' layers (hiding every other
+`map-layer`-backed layer it owns), and show all again once the selection is cleared/empty.
+
+Each entry's bar label defaults to that data source's underlying map layer name (for `map-layer`
+sources) or its id otherwise - `label` overrides this per entry.
 
 ## `stat`
+
 
 A single big number (or gauge) summarizing the rows currently matching every channel this panel
 `listensTo` (or the data source's full row set, if it listens to nothing).

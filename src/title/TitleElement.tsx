@@ -7,6 +7,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  ListItemIcon,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -16,7 +17,9 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PrintIcon from '@mui/icons-material/Print';
-import type { TitleElementConfig } from '../config/types';
+import CheckIcon from '@mui/icons-material/Check';
+import type { TitleElementConfig, TitleMenuOption } from '../config/types';
+import { setChannelField } from '../linking/useChannel';
 
 interface TitleElementProps {
   config: TitleElementConfig;
@@ -28,6 +31,31 @@ export function TitleElement({ config }: TitleElementProps) {
   const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
   const [hamburgerAnchor, setHamburgerAnchor] = useState<HTMLElement | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
+  // Which options-menu item is currently "active" (radio-style - at most one at a time). Plain
+  // component state, not derived from the channels themselves, since two options could coincide
+  // on the same values - this is the source of truth for which one is considered selected.
+  const [activeOptionId, setActiveOptionId] = useState<string | undefined>();
+
+  // Selecting an option clears every OTHER option's configured filter fields first (so a stale
+  // selection from a previously-active option can't linger), then applies the clicked option's
+  // own values - clicking the already-active option again just clears everything (deselects).
+  const handleOptionClick = (option: TitleMenuOption) => {
+    const allOptions = config.optionsMenu?.options ?? [];
+    const isActive = activeOptionId === option.id;
+    const nextActive = isActive ? undefined : option;
+    const seen = new Set<string>();
+    for (const opt of allOptions) {
+      for (const filter of opt.filters ?? []) {
+        const key = `${filter.channel}\u0000${filter.field}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const matching = nextActive?.filters?.find((f) => f.channel === filter.channel && f.field === filter.field);
+        setChannelField(filter.channel, filter.field, matching?.values ?? []);
+      }
+    }
+    setActiveOptionId(nextActive?.id);
+    setOptionsAnchor(null);
+  };
 
   return (
     <AppBar position="static" sx={{ bgcolor: config.backgroundColor ?? 'primary.main', flex: '0 0 auto' }}>
@@ -67,9 +95,9 @@ export function TitleElement({ config }: TitleElementProps) {
               )}
             </IconButton>
             <Menu anchorEl={optionsAnchor} open={Boolean(optionsAnchor)} onClose={() => setOptionsAnchor(null)}>
-              {/* Shell only - these options aren't wired to anything yet (see TitleOptionsMenuConfig). */}
               {config.optionsMenu.options.map((option) => (
-                <MenuItem key={option.id} onClick={() => setOptionsAnchor(null)}>
+                <MenuItem key={option.id} selected={activeOptionId === option.id} onClick={() => handleOptionClick(option)}>
+                  <ListItemIcon>{activeOptionId === option.id && <CheckIcon fontSize="small" />}</ListItemIcon>
                   {option.label}
                 </MenuItem>
               ))}

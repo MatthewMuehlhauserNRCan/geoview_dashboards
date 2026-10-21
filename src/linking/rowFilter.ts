@@ -2,6 +2,12 @@
 // with no selection (missing or empty array) is unconstrained (matches every row).
 export type FieldFilterValue = Record<string, string[]>;
 
+// Reserved/virtual field key used by a multi-source chart's selection (values are the selected
+// `dataSourceId`s, not a real row field) - MUST live on its own dedicated channel, never mixed
+// with a channel that also carries real row-field filters for the same reason the legend panel's
+// alias-vs-raw value spaces couldn't share one channel (see docs/ARCHITECTURE.md).
+export const CHART_SOURCE_FIELD = '__chartSource';
+
 export function isFieldFilterValue(value: unknown): value is FieldFilterValue {
   return (
     typeof value === 'object' &&

@@ -8,5 +8,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
+    // Default 'forks' pool spawns real OS child processes, which on this machine sometimes never
+    // responds in time (`Timeout waiting for worker to respond`, likely antivirus/security
+    // software scanning each new node.exe) - 'threads' uses in-process worker_threads instead,
+    // which starts near-instantly and hasn't reproduced the timeout across repeated runs.
+    pool: 'threads',
   },
 });

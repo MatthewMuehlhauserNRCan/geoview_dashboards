@@ -28,16 +28,21 @@ export function useListenChannels(channels: string[]): FieldFilterValue | undefi
   }, {});
 }
 
+// Merges one field's selected values into a channel's current FieldFilterValue - plain (non-hook)
+// so it can be called imperatively for an arbitrary/dynamic channel (e.g. a title menu option's
+// own configured list of {channel, field} pairs), not just a single fixed one resolved at render.
+export function setChannelField(channel: string, field: string, values: string[]) {
+  if (!channel) return;
+  const { values: channelValues, emit } = useChannelStore.getState();
+  const current = channelValues[channel];
+  const base: FieldFilterValue = isFieldFilterValue(current) ? current : {};
+  emit(channel, { ...base, [field]: values });
+}
+
 // Merges one field's selected values into a channel's current FieldFilterValue, so independent
 // panels (e.g. a filter panel's dropdowns and a chart's click-to-select) can each contribute part
 // of the same combined cross-filter without clobbering each other's fields.
 export function useSetChannelField(channel: string) {
-  return (field: string, values: string[]) => {
-    if (!channel) return;
-    const { values: channelValues, emit } = useChannelStore.getState();
-    const current = channelValues[channel];
-    const base: FieldFilterValue = isFieldFilterValue(current) ? current : {};
-    emit(channel, { ...base, [field]: values });
-  };
+  return (field: string, values: string[]) => setChannelField(channel, field, values);
 }
 

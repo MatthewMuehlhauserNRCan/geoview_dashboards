@@ -16,7 +16,11 @@ interface TitleElementConfig {
   optionsMenu?: {
     icon?: { src: string; alt?: string };
     label?: string;
-    options: { id: string; label: string }[];
+    options: {
+      id: string;
+      label: string;
+      filters?: { channel: string; field: string; values: string[] }[];
+    }[];
   };
   hamburgerMenu?: {
     links?: { id: string; label: string; href: string }[];
@@ -26,8 +30,14 @@ interface TitleElementConfig {
 ```
 
 Set once at the top level (`DashboardConfig.titleElement`) - shared across every page, unlike the
-title panel below. `optionsMenu` is currently a UI shell only (the menu opens, but selecting an
-option doesn't do anything yet) - it's there for a future wiring, not broken.
+title panel below.
+
+`optionsMenu.options[].filters` makes an option clickable as a filter preset: selecting it sets
+each listed channel's field to those values (same shape any panel's selection would push onto a
+[linking](guide/linking.md) channel). Options in the same menu behave like a radio group - at most
+one is "active" at a time, shown with a checkmark; selecting a different option clears every
+*other* option's configured fields first, and clicking the already-active option again clears it
+(back to unconstrained/show-all). An option with no `filters` is just an inert menu item.
 
 ## Title panel (per-page, resizable)
 

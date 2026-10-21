@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
@@ -5,19 +6,30 @@ import {
   Box,
   Button,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
   FormControlLabel,
   IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
-import type { TitleElementConfig, TitleHamburgerLinkConfig, TitleMenuOption } from '../config/types';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import type { LinkingChannel, TitleElementConfig, TitleHamburgerLinkConfig, TitleMenuOption, TitleMenuOptionFilter } from '../config/types';
 import { generateId } from './idUtils';
 
 interface TitleElementFormProps {
   value: TitleElementConfig | undefined;
+  channels: LinkingChannel[];
   onChange: (next: TitleElementConfig | undefined) => void;
 }
 
@@ -25,7 +37,7 @@ const DEFAULT_TITLE_ELEMENT: TitleElementConfig = { title: 'Dashboard' };
 
 // Dashboard-wide header settings - authored once, separate from any single page (unlike
 // `titlePanel`, which is per-page - see TitlePanelForm).
-export function TitleElementForm({ value, onChange }: TitleElementFormProps) {
+export function TitleElementForm({ value, channels, onChange }: TitleElementFormProps) {
   const enabled = value !== undefined;
   const config = value ?? DEFAULT_TITLE_ELEMENT;
 
@@ -123,6 +135,9 @@ export function TitleElementForm({ value, onChange }: TitleElementFormProps) {
                     <OptionRow
                       key={option.id}
                       option={option}
+                      channels={channels}
+                      index={index}
+                      total={config.optionsMenu!.options.length}
                       onChange={(next) =>
                         onChange({
                           ...config,
@@ -135,6 +150,13 @@ export function TitleElementForm({ value, onChange }: TitleElementFormProps) {
                       onRemove={() =>
                         onChange({ ...config, optionsMenu: { ...config.optionsMenu!, options: config.optionsMenu!.options.filter((_, i) => i !== index) } })
                       }
+                      onMove={(direction) => {
+                        const options = [...config.optionsMenu!.options];
+                        const target = index + direction;
+                        if (target < 0 || target >= options.length) return;
+                        [options[index], options[target]] = [options[target], options[index]];
+                        onChange({ ...config, optionsMenu: { ...config.optionsMenu!, options } });
+                      }}
                     />
                   ))}
                   <Button
@@ -269,14 +291,139 @@ export function TitleElementForm({ value, onChange }: TitleElementFormProps) {
   );
 }
 
-function OptionRow({ option, onChange, onRemove }: { option: TitleMenuOption; onChange: (next: TitleMenuOption) => void; onRemove: () => void }) {
+function OptionRow({
+  option,
+  channels,
+  index,
+  total,
+  onChange,
+  onRemove,
+  onMove,
+}: {
+  option: TitleMenuOption;
+  channels: LinkingChannel[];
+  index: number;
+  total: number;
+  onChange: (next: TitleMenuOption) => void;
+  onRemove: () => void;
+  onMove: (direction: -1 | 1) => void;
+}) {
+  const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+  const filterCount = option.filters?.length ?? 0;
+
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <IconButton size="small" disabled={index === 0} onClick={() => onMove(-1)} aria-label="Move up">
+        <ArrowUpwardIcon fontSize="small" />
+      </IconButton>
+      <IconButton size="small" disabled={index === total - 1} onClick={() => onMove(1)} aria-label="Move down">
+        <ArrowDownwardIcon fontSize="small" />
+      </IconButton>
       <TextField label="Label" value={option.label} size="small" onChange={(e) => onChange({ ...option, label: e.target.value })} />
+      <Button size="small" variant="outlined" onClick={() => setFiltersDialogOpen(true)}>
+        Filters {filterCount ? `(${filterCount})` : ''}
+      </Button>
       <IconButton size="small" onClick={onRemove}>
         <DeleteIcon fontSize="small" />
       </IconButton>
+      <OptionFiltersDialog
+        open={filtersDialogOpen}
+        onClose={() => setFiltersDialogOpen(false)}
+        channels={channels}
+        filters={option.filters ?? []}
+        onChange={(next) => onChange({ ...option, filters: next.length ? next : undefined })}
+      />
     </Stack>
+  );
+}
+
+// Lets an author configure, per option, which channel/field(s) get set (and to what values) when
+// that option is clicked - options in the same menu behave like a radio group at runtime (see
+// TitleElement.tsx), so selecting a different one always clears these first.
+function OptionFiltersDialog({
+  open,
+  onClose,
+  channels,
+  filters,
+  onChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  channels: LinkingChannel[];
+  filters: TitleMenuOptionFilter[];
+  onChange: (next: TitleMenuOptionFilter[]) => void;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Filters applied when this option is selected</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Sets each channel's field to these values when this option is clicked. Selecting a
+          different option in the same menu clears these first (only one option is active at a
+          time); clicking the active option again clears it.
+        </Typography>
+        {channels.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No linking channels defined yet - add one in the Linking section first.
+          </Typography>
+        ) : (
+          <Stack spacing={1}>
+            {filters.map((filter, index) => (
+              <Stack key={index} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <FormControl size="small" sx={{ width: '35%' }}>
+                  <InputLabel>Channel</InputLabel>
+                  <Select
+                    label="Channel"
+                    value={filter.channel}
+                    SelectDisplayProps={{ title: filter.channel }}
+                    onChange={(e) => onChange(filters.map((f, i) => (i === index ? { ...f, channel: e.target.value } : f)))}
+                  >
+                    {channels.map((c) => (
+                      <MenuItem key={c.id} value={c.id} title={c.id}>
+                        {c.id}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Field"
+                  size="small"
+                  value={filter.field}
+                  onChange={(e) => onChange(filters.map((f, i) => (i === index ? { ...f, field: e.target.value } : f)))}
+                />
+                <TextField
+                  label="Values (comma-separated)"
+                  size="small"
+                  sx={{ flex: 1 }}
+                  value={filter.values.join(', ')}
+                  onChange={(e) =>
+                    onChange(
+                      filters.map((f, i) =>
+                        i === index
+                          ? { ...f, values: e.target.value.split(',').map((v) => v.trim()).filter(Boolean) }
+                          : f,
+                      ),
+                    )
+                  }
+                />
+                <IconButton size="small" onClick={() => onChange(filters.filter((_, i) => i !== index))}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Stack>
+            ))}
+            <Button
+              size="small"
+              onClick={() => onChange([...filters, { channel: channels[0].id, field: '', values: [] }])}
+            >
+              + Add filter
+            </Button>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Done</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

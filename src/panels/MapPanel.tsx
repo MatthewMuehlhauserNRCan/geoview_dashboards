@@ -1,26 +1,32 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@mui/material/styles';
 import { Box } from '@mui/material';
 
-import type { MapPanelConfig } from '../config/types';
+import type { DataSourceConfig, MapPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
-import { useMapRegistryStore } from '../map/registry';
+import { useMapHandle, useMapRegistryStore } from '../map/registry';
 import { loadCgpv } from '../geoview/loadCgpv';
 import { createGeoviewMapHandle } from '../geoview/mapHandleAdapter';
 import { runMapLifecycleStep } from '../geoview/mapLifecycle';
 import type { MapViewer } from '../geoview/cgpvTypes';
+import { useListenChannels } from '../linking/useChannel';
+import { CHART_SOURCE_FIELD } from '../linking/rowFilter';
 
 interface MapPanelProps {
   panel: MapPanelConfig;
+  dataSources?: DataSourceConfig[];
 }
 
-export function MapPanel({ panel }: MapPanelProps) {
+export function MapPanel({ panel, dataSources = [] }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const theme = useTheme();
   const mapViewerRef = useRef<MapViewer | null>(null);
   const registerMap = useMapRegistryStore((state) => state.registerMap);
   const unregisterMap = useMapRegistryStore((state) => state.unregisterMap);
+  const mapHandle = useMapHandle(panel.id);
+  const sourceSelectionFilter = useListenChannels(panel.interactions?.listensTo ?? []);
+  const selectedSourceIds = sourceSelectionFilter?.[CHART_SOURCE_FIELD];
 
   // Lets an author link to a separate GeoView map config file instead of embedding it inline
   // (keeps a complex map config out of the dashboard's own JSON) - fetched the same way
@@ -108,6 +114,23 @@ export function MapPanel({ panel }: MapPanelProps) {
       });
     };
   }, [panel.id, resolvedConfig, registerMap, unregisterMap]);
+
+  // Lets another panel's click-selection (e.g. a multi-source chart's "one bar per data source"
+  // mode) drive which of THIS map's layers are shown - routed through the normal linking-channel
+  // system via the reserved CHART_SOURCE_FIELD, not a direct cross-component call. Only layers
+  // backed by a `map-layer` data source pointed at this panel are affected; an empty/missing
+  // selection means "unconstrained" (show all), matching the rest of the app's filter convention.
+  const selectedSourceIdsKey = useMemo(() => selectedSourceIds?.join(',') ?? '', [selectedSourceIds]);
+  useEffect(() => {
+    if (!mapHandle) return;
+    const ownMapLayerSources = dataSources.filter(
+      (source): source is Extract<DataSourceConfig, { type: 'map-layer' }> => source.type === 'map-layer' && source.mapPanelId === panel.id,
+    );
+    for (const source of ownMapLayerSources) {
+      const visible = !selectedSourceIds || selectedSourceIds.length === 0 || selectedSourceIds.includes(source.id);
+      mapHandle.setLayerVisible(source.layerId, visible);
+    }
+  }, [mapHandle, panel.id, dataSources, selectedSourceIds, selectedSourceIdsKey]);
 
   if (panel.configUrl) {
     if (isConfigLoading) {

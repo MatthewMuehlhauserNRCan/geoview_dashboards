@@ -50,12 +50,21 @@ export const sampleDashboardConfig: DashboardConfig = {
   ],
   linking: {
     channels: [
-      { id: "cesi-filter", type: "filter", field: "Symbol" },
+      {
+        id: "cesi-filter",
+        type: "filter",
+        description:
+          "Raw/native values for the map's own filter - fed by the Filter panel's dropdowns and the chart's bar clicks.",
+      },
       // Separate from "cesi-filter": the legend's field is classified/domain-coded, so its items'
       // display names don't match the raw values the map's own backend filter needs. Keeping it on
       // its own channel means only in-memory consumers (chart/table/stat) read it, not the filter
       // panel's combined WHERE-clause push to the map (which would break on the value mismatch).
-      { id: "cesi-legend-filter", type: "filter", field: "Symbol" },
+      {
+        id: "cesi-legend-filter",
+        type: "filter",
+        description: "Alias/display values from the legend only - never pushed to the map's own filter.",
+      },
     ],
   },
   pages: [

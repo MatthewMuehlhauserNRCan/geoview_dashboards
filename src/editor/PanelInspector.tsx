@@ -22,10 +22,13 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MapIcon from '@mui/icons-material/Map';
+import DatasetIcon from '@mui/icons-material/Dataset';
 import type { DataSourceConfig, GridPanel, LeafPanelConfig, LinkingChannel } from '../config/types';
 import { LEAF_PANEL_TYPES, PANEL_TYPE_LABELS, createDefaultLeafPanel } from './panelDefaults';
 import { useEditorStore } from './store';
 import { AddPanelDialog } from './AddPanelDialog';
+import { ChartSourcesDialog } from './ChartSourcesDialog';
+import { generateId } from './idUtils';
 
 interface MapPanelOption {
   id: string;
@@ -45,10 +48,12 @@ interface LeafPanelFieldsProps {
 // top-level grid panel and for panels nested inside a `tab`/`stack`'s tabs/items.
 export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOptions, onChange }: LeafPanelFieldsProps) {
   const setPreviewMapPanelId = useEditorStore((s) => s.setPreviewMapPanelId);
+  const addChannel = useEditorStore((s) => s.addChannel);
   const [configText, setConfigText] = useState(() =>
     leafPanel.type === 'map' ? JSON.stringify(leafPanel.config ?? {}, null, 2) : '',
   );
   const [configError, setConfigError] = useState<string | undefined>();
+  const [chartSourcesDialogOpen, setChartSourcesDialogOpen] = useState(false);
 
   const commitConfigText = () => {
     try {
@@ -60,6 +65,9 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
     }
   };
 
+  const selectedDataSource = dataSources.find((ds) => ds.id === leafPanel.dataSource);
+  const isChartMultiSource = leafPanel.type === 'chart' && Boolean(leafPanel.sources?.length);
+
   return (
     <Stack spacing={2}>
       <TextField label="Id" value={leafPanel.id} size="small" fullWidth disabled helperText="Set when the panel was created" />
@@ -70,21 +78,28 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
         fullWidth
         onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
       />
-      <FormControl size="small" fullWidth>
+      <FormControl size="small" fullWidth disabled={isChartMultiSource}>
         <InputLabel>Data source</InputLabel>
         <Select
           label="Data source"
           value={leafPanel.dataSource ?? ''}
+          SelectDisplayProps={{ title: selectedDataSource ? `${selectedDataSource.id} (${selectedDataSource.type})` : '' }}
           onChange={(e) => onChange((p) => ({ ...p, dataSource: e.target.value || undefined }))}
         >
           <MenuItem value="">None</MenuItem>
           {dataSources.map((ds) => (
-            <MenuItem key={ds.id} value={ds.id}>
+            <MenuItem key={ds.id} value={ds.id} title={`${ds.id} (${ds.type})`}>
               {ds.id} ({ds.type})
             </MenuItem>
           ))}
         </Select>
+        {isChartMultiSource && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+            Ignored while multi-source mode (below) is on - this chart pulls from each of those data sources instead.
+          </Typography>
+        )}
       </FormControl>
+
 
       <FormControl size="small" fullWidth disabled={channels.length === 0}>
         <InputLabel>Emits (on interaction)</InputLabel>
@@ -137,9 +152,14 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
         </Select>
       </FormControl>
       {channels.length === 0 && (
-        <Typography variant="caption" color="text.secondary">
-          No linking channels defined yet - add one in the Linking section to cross-filter panels.
-        </Typography>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary">
+            No linking channels defined yet - these stay disabled until one exists.
+          </Typography>
+          <Button size="small" onClick={() => addChannel({ id: generateId('channel'), type: 'filter' })}>
+            + New channel
+          </Button>
+        </Stack>
       )}
 
       <Divider />
@@ -198,9 +218,11 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             value={leafPanel.field ?? ''}
             size="small"
             fullWidth
+            disabled={Boolean(leafPanel.sources?.length)}
+            helperText={leafPanel.sources?.length ? 'Ignored while multi-source mode (below) is on.' : undefined}
             onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, field: e.target.value || undefined } : p))}
           />
-          <FormControl size="small" fullWidth>
+          <FormControl size="small" fullWidth disabled={Boolean(leafPanel.sources?.length)}>
             <InputLabel>Aggregation</InputLabel>
             <Select
               label="Aggregation"
@@ -218,7 +240,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               <MenuItem value="max">Max</MenuItem>
             </Select>
           </FormControl>
-          {leafPanel.aggregation && leafPanel.aggregation !== 'count' && (
+          {leafPanel.aggregation && leafPanel.aggregation !== 'count' && !leafPanel.sources?.length && (
             <TextField
               label="Value field (numeric field to aggregate)"
               value={leafPanel.valueField ?? ''}
@@ -227,8 +249,39 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, valueField: e.target.value || undefined } : p))}
             />
           )}
+
+          <Divider />
+
+          <Box>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DatasetIcon />}
+              disabled={leafPanel.chartType === 'scatter'}
+              onClick={() => setChartSourcesDialogOpen(true)}
+            >
+              Multi-source {leafPanel.sources?.length ? `(${leafPanel.sources.length})` : ''}
+            </Button>
+            {leafPanel.chartType === 'scatter' ? (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Not available for scatter charts (need two numeric fields on one row set).
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Optional: one value per data source instead of grouping the single data source above.
+              </Typography>
+            )}
+          </Box>
+          <ChartSourcesDialog
+            open={chartSourcesDialogOpen}
+            onClose={() => setChartSourcesDialogOpen(false)}
+            dataSources={dataSources}
+            sources={leafPanel.sources ?? []}
+            onChange={(next) => onChange((p) => (p.type === 'chart' ? { ...p, sources: next.length ? next : undefined } : p))}
+          />
         </Stack>
       )}
+
 
       {leafPanel.type === 'stat' && (
         <Stack spacing={2}>
