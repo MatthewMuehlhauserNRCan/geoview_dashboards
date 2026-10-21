@@ -47,6 +47,10 @@
   margin-bottom: 0;
 }
 
+.markdown-content h1 {
+  line-height: 1;
+}
+
 .markdown-content img {
   max-width: 100%;
 }
