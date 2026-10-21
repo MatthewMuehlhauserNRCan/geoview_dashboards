@@ -15,15 +15,19 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
 
   return {
     listLayers(): DashboardMapLayerInfo[] {
-      return mapViewer.layer.getGeoviewLayerPaths().map((layerPath) => {
-        const layer = mapViewer.layer.getGeoviewLayerRegularIfExists(layerPath);
-        const style = layer?.getStyle();
+      // Iterate the already-filtered "regular" layers directly (not getGeoviewLayerPaths(), which
+      // also includes group-layer paths - e.g. the implicit group GeoView wraps around an
+      // esriDynamic service's sublayers - and getGeoviewLayerRegularIfExists() THROWS rather than
+      // returning undefined for those).
+      return mapViewer.layer.getGeoviewLayersRegulars().map((layer) => {
+        const layerPath = layer.getLayerPath();
+        const style = layer.getStyle();
         const [firstGeometryKey] = style ? Object.keys(style) : [];
         return {
           id: layerPath,
-          name: layer?.getLayerName() ?? layerPath,
+          name: layer.getLayerName() ?? layerPath,
           geometryType: toLayerGeometryType(firstGeometryKey),
-          queryable: layer?.getQueryable() ?? false,
+          queryable: layer.getQueryable() ?? false,
         };
       });
     },
@@ -53,9 +57,10 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
     },
     async getMapLegend(): Promise<DashboardMapLegendLayer[]> {
       const results = await Promise.allSettled(
-        mapViewer.layer.getGeoviewLayerPaths().map(async (layerPath): Promise<DashboardMapLegendLayer | undefined> => {
-          const layer = mapViewer.layer.getGeoviewLayerRegularIfExists(layerPath);
-          if (!layer) return undefined;
+        // Same reasoning as listLayers(): iterate regular layers directly, not
+        // getGeoviewLayerPaths() + getGeoviewLayerRegularIfExists() (throws for group paths).
+        mapViewer.layer.getGeoviewLayersRegulars().map(async (layer): Promise<DashboardMapLegendLayer | undefined> => {
+          const layerPath = layer.getLayerPath();
 
           mapViewer.layer.legendsLayerSet.queryLegend(layer);
           // A legend that genuinely never arrives (e.g. a layer errored) shouldn't block every
