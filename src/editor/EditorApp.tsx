@@ -23,6 +23,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import StorageIcon from '@mui/icons-material/Storage';
 import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
 import PaletteIcon from '@mui/icons-material/Palette';
 import type { PanelConfig } from '../config/types';
@@ -65,6 +66,7 @@ export function EditorApp() {
   const [errors, setErrors] = useState<string[] | undefined>();
   const [headerDialogOpen, setHeaderDialogOpen] = useState(false);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
+  const [dataSourcesDialogOpen, setDataSourcesDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handlePick = (type: PanelConfig['type']) => {
@@ -116,6 +118,9 @@ export function EditorApp() {
           />
           <TextField size="small" label="Dashboard id" value={config.id} onChange={(e) => updateMeta({ id: e.target.value })} />
           <Box sx={{ flex: 1 }} />
+          <Button size="small" startIcon={<StorageIcon />} onClick={() => setDataSourcesDialogOpen(true)}>
+            Data sources
+          </Button>
           <Button size="small" startIcon={<PaletteIcon />} onClick={() => setThemeDialogOpen(true)}>
             Theme
           </Button>
@@ -204,7 +209,6 @@ export function EditorApp() {
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <Box sx={{ width: 320, borderRight: '1px solid', borderColor: 'divider', overflow: 'auto', p: 1 }}>
           <Stack spacing={2}>
-            <DataSourcesPanel />
             <LinkingPanel />
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -245,6 +249,16 @@ export function EditorApp() {
       </Box>
 
       <AddPanelDialog open={!!addAt} onClose={() => setAddAt(undefined)} onPick={handlePick} />
+
+      <Dialog open={dataSourcesDialogOpen} onClose={() => setDataSourcesDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Data sources</DialogTitle>
+        <DialogContent>
+          <DataSourcesPanel />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDataSourcesDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={themeDialogOpen} onClose={() => setThemeDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Theme colors</DialogTitle>

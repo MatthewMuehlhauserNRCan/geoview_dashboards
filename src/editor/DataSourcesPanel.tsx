@@ -3,11 +3,13 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   List,
@@ -132,6 +134,106 @@ function DataSourceForm({ value, onChange }: DataSourceFormProps) {
   );
 }
 
+// Lets an author add several map-layer data sources in one go (e.g. every sublayer of an
+// esriDynamic group service) instead of repeating "add -> pick layer -> save" one at a time.
+function AddMapLayersDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const config = useEditorStore((s) => s.config);
+  const addDataSource = useEditorStore((s) => s.addDataSource);
+  const mapPanels = useMapPanels(config);
+
+  const [mapPanelId, setMapPanelId] = useState('');
+  const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(new Set());
+  const mapHandle = useMapHandle(mapPanelId);
+  const queryableLayers = mapHandle?.listLayers().filter((l) => l.queryable) ?? [];
+
+  const toggleLayer = (layerId: string) => {
+    setSelectedLayerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(layerId)) next.delete(layerId);
+      else next.add(layerId);
+      return next;
+    });
+  };
+
+  const allSelected = queryableLayers.length > 0 && selectedLayerIds.size === queryableLayers.length;
+
+  const handleAdd = () => {
+    for (const layerId of selectedLayerIds) {
+      addDataSource({ id: generateId('source'), type: 'map-layer', mapPanelId, layerId });
+    }
+    setMapPanelId('');
+    setSelectedLayerIds(new Set());
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Add map layer(s)</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Map panel</InputLabel>
+            <Select
+              label="Map panel"
+              value={mapPanelId}
+              onChange={(e) => {
+                setMapPanelId(e.target.value);
+                setSelectedLayerIds(new Set());
+              }}
+            >
+              {mapPanels.map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.title || p.id}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {mapPanelId && !mapHandle && (
+            <Alert severity="info">
+              This map isn't loaded yet - open it in the "Map preview" section so its real layers can be listed here.
+            </Alert>
+          )}
+          {mapHandle && queryableLayers.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              No queryable vector layers found on this map.
+            </Typography>
+          )}
+          {mapHandle && queryableLayers.length > 0 && (
+            <Box>
+              <FormControlLabel
+                label="Select all"
+                control={
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={selectedLayerIds.size > 0 && !allSelected}
+                    onChange={(e) => setSelectedLayerIds(e.target.checked ? new Set(queryableLayers.map((l) => l.id)) : new Set())}
+                  />
+                }
+              />
+              <List dense disablePadding>
+                {queryableLayers.map((l) => (
+                  <ListItem key={l.id} disableGutters>
+                    <FormControlLabel
+                      label={l.name}
+                      control={<Checkbox checked={selectedLayerIds.has(l.id)} onChange={() => toggleLayer(l.id)} />}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleAdd} disabled={selectedLayerIds.size === 0}>
+          Add {selectedLayerIds.size || ''} data source{selectedLayerIds.size === 1 ? '' : 's'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export function DataSourcesPanel() {
   const dataSources = useEditorStore((s) => s.config.dataSources);
   const addDataSource = useEditorStore((s) => s.addDataSource);
@@ -140,6 +242,10 @@ export function DataSourcesPanel() {
 
   const [dialogSource, setDialogSource] = useState<DataSourceConfig | undefined>();
   const [isNew, setIsNew] = useState(false);
+  // The id the dialog opened with, so save() can find the right entry even if the author edits
+  // the id field itself (dialogSource.id would then no longer match the stored entry's id).
+  const [originalId, setOriginalId] = useState<string | undefined>();
+  const [mapLayersDialogOpen, setMapLayersDialogOpen] = useState(false);
 
   const openNew = (type: DataSourceType) => {
     setDialogSource(createDefaultDataSource(type));
@@ -148,20 +254,18 @@ export function DataSourcesPanel() {
   const openEdit = (source: DataSourceConfig) => {
     setDialogSource(source);
     setIsNew(false);
+    setOriginalId(source.id);
   };
 
   const save = () => {
     if (!dialogSource) return;
     if (isNew) addDataSource(dialogSource);
-    else updateDataSource(dialogSource.id, () => dialogSource);
+    else if (originalId) updateDataSource(originalId, () => dialogSource);
     setDialogSource(undefined);
   };
 
   return (
     <Box>
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        Data sources
-      </Typography>
       <List dense disablePadding>
         {dataSources.map((ds) => (
           <ListItem
@@ -189,8 +293,8 @@ export function DataSourcesPanel() {
         <Button size="small" variant="outlined" onClick={() => openNew('static-file')}>
           + File
         </Button>
-        <Button size="small" variant="outlined" onClick={() => openNew('map-layer')}>
-          + Map layer
+        <Button size="small" variant="outlined" onClick={() => setMapLayersDialogOpen(true)}>
+          + Map layer(s)
         </Button>
       </Stack>
 
@@ -206,6 +310,9 @@ export function DataSourcesPanel() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <AddMapLayersDialog open={mapLayersDialogOpen} onClose={() => setMapLayersDialogOpen(false)} />
     </Box>
   );
 }
+

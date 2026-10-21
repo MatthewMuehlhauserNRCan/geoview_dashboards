@@ -1,6 +1,10 @@
 :root {
   font: 16px/145% system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+  /* This app isn't itself a dark theme (MUI's default light palette is used everywhere, and the
+     editor isn't themed at all) - "light dark" here would let the OS dark preference flip native
+     UA defaults (e.g. unstyled text color) to white while MUI surfaces stay light, causing
+     white-on-white text. Force light so native rendering always matches the app's own light UI. */
+  color-scheme: light;
 }
 
 html,
@@ -8,8 +12,7 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  /* Explicit so a transparent gap never exposes the browser's dark-mode default canvas color
-     (this page supports `color-scheme: light dark` above, but isn't itself a dark theme). */
+  /* Explicit so a transparent gap never shows anything but this app's own light background. */
   background: #fff;
 }
 
