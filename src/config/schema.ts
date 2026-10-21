@@ -22,11 +22,18 @@ const baseFields = {
   interactions: panelInteractionsSchema.optional(),
 };
 
-const mapPanelFields = z.object({
-  ...baseFields,
-  type: z.literal('map'),
-  config: z.record(z.string(), z.unknown()),
-});
+const mapPanelFields = z
+  .object({
+    ...baseFields,
+    type: z.literal('map'),
+    config: z.record(z.string(), z.unknown()).optional(),
+    // fetches the GeoView map config from a separate file/URL instead of embedding it inline
+    configUrl: z.string().optional(),
+  })
+  .refine((panel) => Boolean(panel.configUrl) || Boolean(panel.config && Object.keys(panel.config).length > 0), {
+    message: 'map panel requires either `config` or `configUrl`',
+    path: ['config'],
+  });
 
 const chartPanelFields = z.object({
   ...baseFields,

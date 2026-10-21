@@ -29,7 +29,7 @@ export function MapPreview() {
   const mapPanels = useMapPanels(config);
 
   const selected = mapPanels.find((p) => p.id === previewMapPanelId) ?? mapPanels[0];
-  const hasConfig = selected && Object.keys(selected.config ?? {}).length > 0;
+  const hasConfig = selected && (Boolean(selected.configUrl) || Object.keys(selected.config ?? {}).length > 0);
 
   if (mapPanels.length === 0) {
     return (
@@ -57,7 +57,8 @@ export function MapPreview() {
         {selected && hasConfig && <MapPanel key={selected.id} panel={selected} />}
         {selected && !hasConfig && (
           <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-            Paste a valid GeoView map config for "{selected.title || selected.id}" in its inspector to preview it here.
+            Paste a valid GeoView map config (or set a Config URL) for "{selected.title || selected.id}" in its inspector to
+            preview it here.
           </Typography>
         )}
       </Box>

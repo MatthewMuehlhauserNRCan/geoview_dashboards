@@ -27,15 +27,23 @@ Renders a live, interactive GeoView map.
 ```ts
 interface MapPanelConfig {
   type: 'map';
-  config: Record<string, unknown>; // passed straight through to GeoView, unchanged
+  config?: Record<string, unknown>; // passed straight through to GeoView, unchanged
+  configUrl?: string; // fetches the config JSON from a separate file instead of embedding it
 }
 ```
 
-`config` is a real GeoView map config object (the same shape you'd hand to GeoView directly) -
-see GeoView's own
+Exactly one of `config`/`configUrl` must be set (if both are, `configUrl` wins). Either way it's
+a real GeoView map config object (the same shape you'd hand to GeoView directly) - see GeoView's
+own
 [configuration reference](https://canadian-geospatial-platform.github.io/geoview/docs/#/app/config/configuration-reference)
 for its full shape. At minimum it needs a `map` key with `viewSettings`/`basemapOptions`/
 `listOfGeoviewLayerConfig`. See [Full Example](guide/full-example.md) for a complete, working one.
+
+Use `configUrl` to keep a large/complex map config in its own file instead of embedding it inline
+in the dashboard config - handy once a map's config grows beyond a few layers. It's fetched at
+runtime with a plain `fetch()` (same mechanism as a text panel's `contentUrl`), so it must be
+reachable (and CORS-permitting, if hosted on a different origin) from wherever the dashboard is
+viewed - there's no bundling/packaging step that inlines it for you.
 
 Other panels read a map panel's layers via a `map-layer` [data source](guide/data-sources.md)
 that references this panel's own `id` as `mapPanelId`.

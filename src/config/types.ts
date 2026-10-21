@@ -23,8 +23,12 @@ interface BasePanelConfig {
 
 export interface MapPanelConfig extends BasePanelConfig {
   type: 'map';
-  // passed straight through to the GeoView core map component
-  config: Record<string, unknown>;
+  // passed straight through to the GeoView core map component; optional when `configUrl` is used instead
+  config?: Record<string, unknown>;
+  // fetches the GeoView map config JSON from a separate file/URL instead of embedding it inline -
+  // keeps a complex map config out of the (often hand-authored) dashboard config. If both are set,
+  // `configUrl` wins (its fetched value is used, `config` is ignored).
+  configUrl?: string;
 }
 
 export interface ChartPanelConfig extends BasePanelConfig {

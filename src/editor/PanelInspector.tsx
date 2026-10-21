@@ -45,7 +45,9 @@ interface LeafPanelFieldsProps {
 // top-level grid panel and for panels nested inside a `tab`/`stack`'s tabs/items.
 export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOptions, onChange }: LeafPanelFieldsProps) {
   const setPreviewMapPanelId = useEditorStore((s) => s.setPreviewMapPanelId);
-  const [configText, setConfigText] = useState(() => (leafPanel.type === 'map' ? JSON.stringify(leafPanel.config, null, 2) : ''));
+  const [configText, setConfigText] = useState(() =>
+    leafPanel.type === 'map' ? JSON.stringify(leafPanel.config ?? {}, null, 2) : '',
+  );
   const [configError, setConfigError] = useState<string | undefined>();
 
   const commitConfigText = () => {
@@ -144,6 +146,15 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
 
       {leafPanel.type === 'map' && (
         <Stack spacing={1}>
+          <TextField
+            label="Config URL"
+            placeholder="https://example.com/maps/my-map-config.json"
+            helperText="Optional - fetches the GeoView map config from a separate file instead of the JSON below (keeps a complex map config out of this dashboard's own config)."
+            value={leafPanel.configUrl ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'map' ? { ...p, configUrl: e.target.value || undefined } : p))}
+          />
           <Typography variant="subtitle2">GeoView map config (JSON)</Typography>
           <TextField
             value={configText}
@@ -154,7 +165,9 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             maxRows={16}
             size="small"
             fullWidth
+            disabled={Boolean(leafPanel.configUrl)}
             placeholder='{ "map": { ... } }'
+            helperText={leafPanel.configUrl ? 'Ignored while Config URL is set.' : undefined}
             sx={{ fontFamily: 'monospace' }}
           />
           {configError && <Alert severity="error">{configError}</Alert>}

@@ -73,45 +73,9 @@ export const sampleDashboardConfig: DashboardConfig = {
           type: "map",
           // title: 'Map',
           layout: { col: 1, row: 1, colSpan: 2, rowSpan: 2 },
-          // Minimal valid GeoView config (verified against docs/app/api/api.md's own example)
-          config: {
-            map: {
-              interaction: "dynamic",
-              viewSettings: {
-                projection: 3978,
-                initialView: { zoomAndCenter: [4, [-95, 55]] },
-              },
-              basemapOptions: {
-                basemapId: "transport",
-                shaded: true,
-                labeled: true,
-              },
-              listOfGeoviewLayerConfig: [
-                {
-                  geoviewLayerId: "uniqueValueId",
-                  geoviewLayerName: "uniqueValue",
-                  metadataAccessPath:
-                    "https://maps-cartes.ec.gc.ca/arcgis/rest/services/CESI/MapServer/",
-                  geoviewLayerType: "esriFeature",
-                  listOfLayerEntryConfig: [
-                    {
-                      layerId: "1",
-                    },
-                  ],
-                },
-              ],
-            },
-            appBar: {
-              tabs: {
-                core: ["details"],
-              },
-            },
-            footerBar: {
-              tabs: {
-                core: [],
-              },
-            },
-          },
+          // Demonstrates `configUrl`: the real GeoView map config (same shape as the inline
+          // `config` alternative) lives in its own file instead of inline here.
+          configUrl: "./sample-map-config.json",
         },
         {
           id: "panel-users-views",

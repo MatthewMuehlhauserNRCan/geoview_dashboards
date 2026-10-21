@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@mui/material/styles';
 import { Box } from '@mui/material';
 
@@ -21,9 +22,32 @@ export function MapPanel({ panel }: MapPanelProps) {
   const registerMap = useMapRegistryStore((state) => state.registerMap);
   const unregisterMap = useMapRegistryStore((state) => state.unregisterMap);
 
+  // Lets an author link to a separate GeoView map config file instead of embedding it inline
+  // (keeps a complex map config out of the dashboard's own JSON) - fetched the same way
+  // TextPanel fetches `contentUrl`, not routed through the dataSources/useDataSource machinery.
+  const {
+    data: fetchedConfig,
+    isLoading: isConfigLoading,
+    error: configFetchError,
+  } = useQuery({
+    queryKey: ['map-panel-config', panel.configUrl],
+    queryFn: async () => {
+      const response = await fetch(panel.configUrl!);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch map config "${panel.configUrl}": ${response.status} ${response.statusText}`);
+      }
+      return (await response.json()) as Record<string, unknown>;
+    },
+    enabled: Boolean(panel.configUrl),
+  });
+
+  // `configUrl` wins over an inline `config` when both are set (schema requires at least one).
+  const resolvedConfig = panel.configUrl ? fetchedConfig : panel.config;
+
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return undefined;
+    // Still waiting on `configUrl` to resolve (or it failed) - nothing to create a map from yet.
+    if (!container || resolvedConfig === undefined) return undefined;
 
     // GeoView's own built-in auto-resize (useEffectHostResizeSync) doesn't reliably pick up
     // this panel's layout-driven resizes, so we drive it explicitly instead.
@@ -57,7 +81,7 @@ export function MapPanel({ panel }: MapPanelProps) {
           return;
         }
 
-        const mapViewer = await window.cgpv!.api.createMapFromConfigFast(mapDivId, JSON.stringify(panel.config));
+        const mapViewer = await window.cgpv!.api.createMapFromConfigFast(mapDivId, JSON.stringify(resolvedConfig));
         if (cancelled) {
           await window.cgpv!.api.deleteMapViewer(mapDivId, true).catch(() => undefined);
           return;
@@ -83,7 +107,24 @@ export function MapPanel({ panel }: MapPanelProps) {
         await window.cgpv?.api.deleteMapViewer(mapDivId, true).catch(() => undefined);
       });
     };
-  }, [panel.id, panel.config, registerMap, unregisterMap]);
+  }, [panel.id, resolvedConfig, registerMap, unregisterMap]);
+
+  if (panel.configUrl) {
+    if (isConfigLoading) {
+      return (
+        <PanelContainer title={panel.title} expandable={false} disablePadding>
+          <div>Loading map config…</div>
+        </PanelContainer>
+      );
+    }
+    if (configFetchError) {
+      return (
+        <PanelContainer title={panel.title} expandable={false} disablePadding>
+          <div>{(configFetchError as Error).message}</div>
+        </PanelContainer>
+      );
+    }
+  }
 
   return (
     // GeoView already has its own fullscreen control, so this panel doesn't need ours too
