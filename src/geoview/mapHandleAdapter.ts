@@ -21,11 +21,19 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
   // than by object identity, which breaks across refetches/HMR/stale caches.
   const oidFieldByLayer = new Map<string, string>();
 
-  // Shared by getViewExtent() and onViewExtentChanged() below - undefined only when the map has
-  // no real pixel size yet to compute a view extent from (e.g. not yet laid out).
+  // Shared by getViewExtent() and onViewExtentChanged() below - undefined whenever the map isn't
+  // fully ready to compute a view extent from yet (e.g. called right as `registerMap()` fires,
+  // before GeoView has finished attaching its own internal OL map/view - confirmed to genuinely
+  // happen in practice, not just a theoretical race: `mapViewer.map` itself can still be undefined
+  // at that moment) - wrapped defensively rather than trusting every intermediate property/method
+  // to already be populated the instant a MapViewer object exists.
   function getViewExtent(): MapExtent | undefined {
-    const size = mapViewer.map.getSize();
-    return size ? (mapViewer.getView().calculateExtent(size) as MapExtent) : undefined;
+    try {
+      const size = mapViewer.map?.getSize();
+      return size ? (mapViewer.getView().calculateExtent(size) as MapExtent) : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   return {
