@@ -26,11 +26,22 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
   // before GeoView has finished attaching its own internal OL map/view - confirmed to genuinely
   // happen in practice, not just a theoretical race: `mapViewer.map` itself can still be undefined
   // at that moment) - wrapped defensively rather than trusting every intermediate property/method
-  // to already be populated the instant a MapViewer object exists.
+  // to already be populated the instant a MapViewer object exists. ALSO rejects a degenerate
+  // result (zero/negative size, non-finite or zero-area extent) - confirmed in practice that a
+  // layout reflow (e.g. switching tabs elsewhere on the page, resizing this map's own container)
+  // can trigger a moveend/resize cycle where `mapViewer.map.getSize()` is momentarily read mid-
+  // transition, before the resize has fully settled; emitting THAT onto the shared view-extent
+  // channel would wrongly filter out every chart/table row for every listener until the next real
+  // pan/zoom corrects it - safer to just skip this one read and keep the previous good value.
   function getViewExtent(): MapExtent | undefined {
     try {
       const size = mapViewer.map?.getSize();
-      return size ? (mapViewer.getView().calculateExtent(size) as MapExtent) : undefined;
+      if (!size || size[0] <= 0 || size[1] <= 0) return undefined;
+      const extent = mapViewer.getView().calculateExtent(size) as MapExtent;
+      const [minX, minY, maxX, maxY] = extent;
+      if (![minX, minY, maxX, maxY].every(Number.isFinite)) return undefined;
+      if (maxX <= minX || maxY <= minY) return undefined;
+      return extent;
     } catch {
       return undefined;
     }

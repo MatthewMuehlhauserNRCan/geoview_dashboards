@@ -62,21 +62,7 @@ export function TablePanel({ panel, dataSources }: TablePanelProps) {
     // material-react-table already has its own fullscreen toggle, so this panel doesn't need ours too;
     // bodyOverflow="hidden" hands scrolling over to MRT's own table container (below) instead of
     // scrolling the whole panel, so MRT can scroll vertically and horizontally in one place.
-    <PanelContainer
-      title={panel.title}
-      expandable={false}
-      bodyOverflow="hidden"
-      disablePadding
-      headerAction={
-        viewExtent && (
-          <FormControlLabel
-            sx={{ m: 0, bgcolor: 'background.paper' }}
-            control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
-            label="Map view"
-          />
-        )
-      }
-    >
+    <PanelContainer title={panel.title} expandable={false} bodyOverflow="hidden" disablePadding>
       <MaterialReactTable
         columns={columns}
         data={rows}
@@ -84,6 +70,19 @@ export function TablePanel({ panel, dataSources }: TablePanelProps) {
         initialState={{ density: 'compact' }}
         muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
         muiTableContainerProps={{ sx: { flex: 1 } }}
+        // The map-view toggle is rendered via MRT's OWN top-toolbar custom-actions slot (left
+        // side) rather than PanelContainer's floating headerAction - that floats top-RIGHT, the
+        // exact corner MRT's own built-in toolbar icons (density/column visibility/fullscreen)
+        // already occupy, which caused a real overlap.
+        {...(viewExtent && {
+          renderTopToolbarCustomActions: () => (
+            <FormControlLabel
+              sx={{ m: 0 }}
+              control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
+              label="Map view"
+            />
+          ),
+        })}
         // Same "zoom to feature" affordance GeoView's own data table has (zooms the map to the
         // feature's extent and highlights it) - all-or-nothing for the whole layer, not a per-row
         // check, since every row of a layer shares the same schema.
@@ -182,35 +181,7 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
   }, [rows]);
 
   return (
-    <PanelContainer
-      title={panel.title}
-      expandable={false}
-      bodyOverflow="hidden"
-      disablePadding
-      headerAction={
-        (viewExtent || pendingSources.length > 0 || erroredSources.length > 0) && (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', bgcolor: 'background.paper' }}>
-            {pendingSources.length > 0 && (
-              <Typography variant="caption" color="text.secondary">
-                Loading {pendingSources.length} more…
-              </Typography>
-            )}
-            {erroredSources.length > 0 && (
-              <Typography variant="caption" color="error">
-                {erroredSources.length} source{erroredSources.length > 1 ? 's' : ''} failed
-              </Typography>
-            )}
-            {viewExtent && (
-              <FormControlLabel
-                sx={{ m: 0 }}
-                control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
-                label="Map view"
-              />
-            )}
-          </Stack>
-        )
-      }
-    >
+    <PanelContainer title={panel.title} expandable={false} bodyOverflow="hidden" disablePadding>
       {/* Rendered unconditionally - these are what actually feed `results`, via onResult; gating
           them behind a loading/error check would prevent them from ever reporting in. */}
       {sources.map((s) => (
@@ -226,6 +197,32 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
           initialState={{ density: 'compact' }}
           muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
           muiTableContainerProps={{ sx: { flex: 1 } }}
+          // Rendered via MRT's OWN top-toolbar custom-actions slot (left side) rather than
+          // PanelContainer's floating headerAction, which floats top-RIGHT - the exact corner
+          // MRT's own built-in toolbar icons (density/column visibility/fullscreen) occupy.
+          {...((viewExtent || pendingSources.length > 0 || erroredSources.length > 0) && {
+            renderTopToolbarCustomActions: () => (
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                {pendingSources.length > 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    Loading {pendingSources.length} more…
+                  </Typography>
+                )}
+                {erroredSources.length > 0 && (
+                  <Typography variant="caption" color="error">
+                    {erroredSources.length} source{erroredSources.length > 1 ? 's' : ''} failed
+                  </Typography>
+                )}
+                {viewExtent && (
+                  <FormControlLabel
+                    sx={{ m: 0 }}
+                    control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
+                    label="Map view"
+                  />
+                )}
+              </Stack>
+            ),
+          })}
           {...(showZoomColumn && {
             enableRowActions: true,
             positionActionsColumn: 'first',
