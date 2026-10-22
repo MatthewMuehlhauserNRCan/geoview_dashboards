@@ -8,6 +8,14 @@ export type FieldFilterValue = Record<string, string[]>;
 // alias-vs-raw value spaces couldn't share one channel (see docs/ARCHITECTURE.md).
 export const CHART_SOURCE_FIELD = '__chartSource';
 
+// Companion field: every `dataSourceId` a multi-source chart COULD select from (its full
+// `sources[]` list), not just the currently-selected ones. A listening map panel needs this to
+// know which of ITS OWN map-layer-backed layers are actually "in scope" for this channel - without
+// it, a layer backed by a data source the chart never even listed would also get hidden whenever
+// anything else on the chart is selected, since "not in the selected set" alone can't distinguish
+// "deliberately filtered out" from "never part of this chart to begin with".
+export const CHART_SOURCE_UNIVERSE_FIELD = '__chartSourceUniverse';
+
 export function isFieldFilterValue(value: unknown): value is FieldFilterValue {
   return (
     typeof value === 'object' &&

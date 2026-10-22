@@ -11,7 +11,7 @@ import { createGeoviewMapHandle } from '../geoview/mapHandleAdapter';
 import { runMapLifecycleStep } from '../geoview/mapLifecycle';
 import type { MapViewer } from '../geoview/cgpvTypes';
 import { useListenChannels } from '../linking/useChannel';
-import { CHART_SOURCE_FIELD } from '../linking/rowFilter';
+import { CHART_SOURCE_FIELD, CHART_SOURCE_UNIVERSE_FIELD } from '../linking/rowFilter';
 
 interface MapPanelProps {
   panel: MapPanelConfig;
@@ -27,6 +27,7 @@ export function MapPanel({ panel, dataSources = [] }: MapPanelProps) {
   const mapHandle = useMapHandle(panel.id);
   const sourceSelectionFilter = useListenChannels(panel.interactions?.listensTo ?? []);
   const selectedSourceIds = sourceSelectionFilter?.[CHART_SOURCE_FIELD];
+  const chartSourceUniverse = sourceSelectionFilter?.[CHART_SOURCE_UNIVERSE_FIELD];
 
   // Lets an author link to a separate GeoView map config file instead of embedding it inline
   // (keeps a complex map config out of the dashboard's own JSON) - fetched the same way
@@ -118,19 +119,24 @@ export function MapPanel({ panel, dataSources = [] }: MapPanelProps) {
   // Lets another panel's click-selection (e.g. a multi-source chart's "one bar per data source"
   // mode) drive which of THIS map's layers are shown - routed through the normal linking-channel
   // system via the reserved CHART_SOURCE_FIELD, not a direct cross-component call. Only layers
-  // backed by a `map-layer` data source pointed at this panel are affected; an empty/missing
-  // selection means "unconstrained" (show all), matching the rest of the app's filter convention.
+  // backed by a `map-layer` data source that's part of the chart's OWN `sources[]` universe are
+  // affected (CHART_SOURCE_UNIVERSE_FIELD) - a layer whose data source was never listed on that
+  // chart to begin with is left alone, not hidden just because something ELSE got selected; an
+  // empty/missing selection means "unconstrained" (show all), matching the rest of the app's
+  // filter convention.
   const selectedSourceIdsKey = useMemo(() => selectedSourceIds?.join(',') ?? '', [selectedSourceIds]);
+  const chartSourceUniverseKey = useMemo(() => chartSourceUniverse?.join(',') ?? '', [chartSourceUniverse]);
   useEffect(() => {
-    if (!mapHandle) return;
+    if (!mapHandle || !chartSourceUniverse) return;
     const ownMapLayerSources = dataSources.filter(
-      (source): source is Extract<DataSourceConfig, { type: 'map-layer' }> => source.type === 'map-layer' && source.mapPanelId === panel.id,
+      (source): source is Extract<DataSourceConfig, { type: 'map-layer' }> =>
+        source.type === 'map-layer' && source.mapPanelId === panel.id && chartSourceUniverse.includes(source.id),
     );
     for (const source of ownMapLayerSources) {
       const visible = !selectedSourceIds || selectedSourceIds.length === 0 || selectedSourceIds.includes(source.id);
       mapHandle.setLayerVisible(source.layerId, visible);
     }
-  }, [mapHandle, panel.id, dataSources, selectedSourceIds, selectedSourceIdsKey]);
+  }, [mapHandle, panel.id, dataSources, selectedSourceIds, selectedSourceIdsKey, chartSourceUniverse, chartSourceUniverseKey]);
 
   if (panel.configUrl) {
     if (isConfigLoading) {

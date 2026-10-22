@@ -22,7 +22,7 @@ import type { ChartPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels, useSetChannelField } from '../linking/useChannel';
-import { rowMatchesFieldFilter, CHART_SOURCE_FIELD, type FieldFilterValue } from '../linking/rowFilter';
+import { rowMatchesFieldFilter, CHART_SOURCE_FIELD, CHART_SOURCE_UNIVERSE_FIELD, type FieldFilterValue } from '../linking/rowFilter';
 import { groupAndAggregate, describeAggregation } from '../dataSources/aggregate';
 import { useMapHandle } from '../map/registry';
 
@@ -282,6 +282,13 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
   const filterValue = useListenChannels(listenChannels);
   const setField = useSetChannelField(channel);
   const selectedSourceIds = useMemo(() => filterValue?.[CHART_SOURCE_FIELD] ?? [], [filterValue]);
+
+  // A listening map panel needs to know every `dataSourceId` this chart COULD select from, not
+  // just the currently-selected ones - otherwise it can't tell "deliberately filtered out" apart
+  // from "a layer that was never part of this chart" (see CHART_SOURCE_UNIVERSE_FIELD).
+  useEffect(() => {
+    setField(CHART_SOURCE_UNIVERSE_FIELD, sources.map((s) => s.dataSourceId));
+  }, [setField, sources]);
 
   // Each SourceRowsFetcher below is its own component instance with its own hooks, so a
   // variable-length `sources` list is safe (not a dynamic number of hook calls in ONE component).

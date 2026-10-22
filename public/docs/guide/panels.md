@@ -112,8 +112,10 @@ set, `dataSource`/`field`/`aggregation`/`valueField` are ignored; not supported 
 
 Clicking toggles that source in/out of the selection, emitted on this panel's channel as a
 reserved field (not a real row field) carrying the selected data source ids. A `map` panel that
-`listensTo` the same channel will show only the selected sources' layers (hiding every other
-`map-layer`-backed layer it owns), and show all again once the selection is cleared/empty.
+`listensTo` the same channel will show only the selected sources' layers, hiding every OTHER
+layer backed by a data source listed in this chart's own `sources` - a layer backed by a data
+source that ISN'T one of this chart's `sources` is left alone regardless of what's selected, and
+everything shows again once the selection is cleared/empty.
 
 Each entry's `color` overrides its auto-assigned color, same as the single-source `colors` map above.
 

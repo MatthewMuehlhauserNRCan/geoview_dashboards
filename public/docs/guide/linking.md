@@ -42,9 +42,11 @@ interactions?: {
   listen to more than one channel at once; their contributions are merged together).
 - A `map` panel can also **listen** - if a `chart` panel is in [multi-source mode](guide/panels.md)
   and `emits` onto a channel the map `listensTo`, selecting bars/slices there shows only the
-  corresponding `map-layer`-backed layers on that map (hiding its other data-source-backed
-  layers), using a reserved field key rather than a real row field - don't reuse that same channel
-  for a normal row-field filter too (see the dual-value-space note below).
+  corresponding `map-layer`-backed layers on that map, hiding every OTHER layer backed by a data
+  source that's part of that SAME chart's own `sources` list - a layer backed by a data source
+  the chart never listed is left untouched regardless of what's selected, using a reserved field
+  key rather than a real row field - don't reuse that same channel for a normal row-field filter
+  too (see the dual-value-space note below).
 - A panel's `dataSource` is independent of its channels - a panel only reacts to a channel's
   *values*, it never assumes those values came from its own data source.
 

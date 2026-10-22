@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useChannelStore } from './eventBus';
 import { isFieldFilterValue, type FieldFilterValue } from './rowFilter';
 
@@ -41,8 +42,12 @@ export function setChannelField(channel: string, field: string, values: string[]
 
 // Merges one field's selected values into a channel's current FieldFilterValue, so independent
 // panels (e.g. a filter panel's dropdowns and a chart's click-to-select) can each contribute part
-// of the same combined cross-filter without clobbering each other's fields.
+// of the same combined cross-filter without clobbering each other's fields. Memoized on `channel`
+// so its identity stays stable across renders - needed by any caller that uses it inside a
+// `useEffect` dependency array (an unstable function reference would otherwise re-fire that
+// effect, and re-emitting on every render, every render forever if that effect's own emission
+// causes this component to re-render too, e.g. by listening to the same channel it writes to).
 export function useSetChannelField(channel: string) {
-  return (field: string, values: string[]) => setChannelField(channel, field, values);
+  return useCallback((field: string, values: string[]) => setChannelField(channel, field, values), [channel]);
 }
 
