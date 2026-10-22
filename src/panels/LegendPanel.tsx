@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Box, Button, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import type { LegendPanelConfig } from '../config/types';
 import type { DashboardLegendItem, DashboardMapLegendLayer } from '../map/types';
 import { PanelContainer } from './PanelContainer';
@@ -91,6 +91,26 @@ export function LegendPanel({ panel }: LegendPanelProps) {
     });
   };
 
+  const hasHidden = layers.some((layer) => !layer.visible || layer.items.some((item) => !item.isVisible));
+
+  // Undoes every layer/item toggle in one click (back to "everything visible") instead of
+  // requiring the user to click each hidden layer/item individually.
+  const clearSelection = () => {
+    for (const layer of layers) {
+      if (!layer.visible) mapHandle?.setLayerVisible(layer.layerId, true);
+      for (const item of layer.items) {
+        if (!item.isVisible) mapHandle?.setLegendItemVisible(layer.layerId, item.name, true);
+      }
+    }
+    const next = layers.map((layer) => ({
+      ...layer,
+      visible: true,
+      items: layer.items.map((item) => ({ ...item, isVisible: true })),
+    }));
+    setLayers(next);
+    emitFilter(next);
+  };
+
   if (!panel.mapPanelId) {
     return <PanelContainer title={panel.title}>Legend needs a map panel configured</PanelContainer>;
   }
@@ -101,7 +121,16 @@ export function LegendPanel({ panel }: LegendPanelProps) {
   const showLayerHeaders = panel.showLayerHeaders ?? true;
 
   return (
-    <PanelContainer title={panel.title} disablePadding bodyOverflow="auto">
+    <PanelContainer
+      title={panel.title}
+      disablePadding
+      bodyOverflow="auto"
+      headerAction={hasHidden && (
+        <Button size="small" onClick={clearSelection}>
+          Clear selection
+        </Button>
+      )}
+    >
       {layers.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
           No layers on this map.
