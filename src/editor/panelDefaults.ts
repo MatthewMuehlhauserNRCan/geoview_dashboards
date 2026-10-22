@@ -6,25 +6,25 @@ import { generateId } from './idUtils';
 export function createDefaultLeafPanel(type: LeafPanelConfig['type'], id = generateId(`panel-${type}`)): LeafPanelConfig {
   switch (type) {
     case 'map':
-      return { id, type, title: 'Map', config: {} };
+      return { id, type, config: {} };
     case 'chart':
-      return { id, type, title: 'Chart', chartType: 'bar' };
+      return { id, type, chartType: 'bar' };
     case 'stat':
-      return { id, type, title: 'Stat' };
+      return { id, type };
     case 'table':
-      return { id, type, title: 'Table' };
+      return { id, type };
     case 'legend':
-      return { id, type, title: 'Legend' };
+      return { id, type };
     case 'filter':
-      return { id, type, title: 'Filter', fields: [] };
+      return { id, type, fields: [] };
     case 'text':
-      return { id, type, title: 'Text', content: '', format: 'plain' };
+      return { id, type, content: '', format: 'plain' };
   }
 }
 
 export function createDefaultPanel(type: PanelConfig['type'], id = generateId(`panel-${type}`)): PanelConfig {
-  if (type === 'tab') return { id, type, title: 'Tabs', tabs: [] };
-  if (type === 'stack') return { id, type, title: 'Stack', items: [] };
+  if (type === 'tab') return { id, type, tabs: [] };
+  if (type === 'stack') return { id, type, items: [] };
   return createDefaultLeafPanel(type, id);
 }
 

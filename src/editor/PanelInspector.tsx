@@ -27,6 +27,8 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import MapIcon from '@mui/icons-material/Map';
 import DatasetIcon from '@mui/icons-material/Dataset';
 import type { DataSourceConfig, GridPanel, LeafPanelConfig, LinkingChannel } from '../config/types';
@@ -41,6 +43,22 @@ import { generateId } from './idUtils';
 interface MapPanelOption {
   id: string;
   label: string;
+}
+
+// Titles are off by default (undefined = no header shown at all) - this checkbox is the only way
+// to turn one on, rather than an always-visible text field an author has to notice and clear.
+function TitleField({ title, onChange }: { title: string | undefined; onChange: (title: string | undefined) => void }) {
+  return (
+    <Stack spacing={1}>
+      <FormControlLabel
+        label="Include title"
+        control={
+          <Checkbox checked={title !== undefined} onChange={(e) => onChange(e.target.checked ? (title ?? '') : undefined)} />
+        }
+      />
+      {title !== undefined && <TextField label="Title" value={title} size="small" fullWidth onChange={(e) => onChange(e.target.value)} />}
+    </Stack>
+  );
 }
 
 interface LeafPanelFieldsProps {
@@ -106,13 +124,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   return (
     <Stack spacing={2}>
       <TextField label="Id" value={leafPanel.id} size="small" fullWidth disabled helperText="Set when the panel was created" />
-      <TextField
-        label="Title"
-        value={leafPanel.title ?? ''}
-        size="small"
-        fullWidth
-        onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
-      />
+      <TitleField title={leafPanel.title} onChange={(title) => onChange((p) => ({ ...p, title }))} />
       {isMultiSourcePanel ? (
         <FormControl size="small" fullWidth>
           <InputLabel>Data source(s)</InputLabel>
@@ -673,13 +685,7 @@ export function PanelInspector({ pageId, panel, pagePanels, dataSources, channel
           {PANEL_TYPE_LABELS[panel.type]}
         </Typography>
         <TextField label="Id" value={panel.id} size="small" fullWidth disabled />
-        <TextField
-          label="Title"
-          value={panel.title ?? ''}
-          size="small"
-          fullWidth
-          onChange={(e) => updateTop((p) => ({ ...p, title: e.target.value }))}
-        />
+        <TitleField title={panel.title} onChange={(title) => updateTop((p) => ({ ...p, title }))} />
         {panel.type === 'stack' && (
           <FormControl size="small" fullWidth>
             <InputLabel>Direction</InputLabel>
@@ -785,10 +791,34 @@ function NestedPanelList({ pageId, panel, siblingPanels, dataSources, channels, 
     updateTop((p) => ({ ...(p as GridTabPanel), tabs: (p as GridTabPanel).tabs.map((t) => (t.id === key ? { ...t, label } : t)) }));
   };
 
+  // Swaps two adjacent entries - for a stack, a parallel `sizes[]` weight (keyed by index, not id)
+  // must be swapped right along with `items` or a size would end up applying to the wrong item.
+  const moveEntry = (key: string, direction: 'up' | 'down') => {
+    const index = entries.findIndex((e) => e.key === key);
+    const nextIndex = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || nextIndex < 0 || nextIndex >= entries.length) return;
+    updateTop((p) => {
+      if (isTab) {
+        const tabs = [...(p as GridTabPanel).tabs];
+        [tabs[index], tabs[nextIndex]] = [tabs[nextIndex], tabs[index]];
+        return { ...(p as GridTabPanel), tabs };
+      }
+      const stackPanel = p as GridStackPanel;
+      const items = [...stackPanel.items];
+      [items[index], items[nextIndex]] = [items[nextIndex], items[index]];
+      let sizes = stackPanel.sizes;
+      if (sizes && sizes.length === stackPanel.items.length) {
+        sizes = [...sizes];
+        [sizes[index], sizes[nextIndex]] = [sizes[nextIndex], sizes[index]];
+      }
+      return { ...stackPanel, items, sizes };
+    });
+  };
+
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2">{isTab ? 'Tabs' : 'Items'}</Typography>
-      {entries.map(({ key, label, leaf }) => (
+      {entries.map(({ key, label, leaf }, index) => (
         <Accordion key={key} disableGutters>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', pr: 1 }}>
@@ -796,6 +826,28 @@ function NestedPanelList({ pageId, panel, siblingPanels, dataSources, channels, 
                 {label} ({PANEL_TYPE_LABELS[leaf.type]})
               </Typography>
               <Box>
+                <IconButton
+                  size="small"
+                  title="Move earlier"
+                  disabled={index === 0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveEntry(key, 'up');
+                  }}
+                >
+                  <ArrowUpwardIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  title="Move later"
+                  disabled={index === entries.length - 1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveEntry(key, 'down');
+                  }}
+                >
+                  <ArrowDownwardIcon fontSize="small" />
+                </IconButton>
                 <IconButton
                   size="small"
                   title="Extract to top-level grid"
