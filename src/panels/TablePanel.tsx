@@ -176,8 +176,16 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
     ];
   }, [rows]);
 
-  if (isLoading) return <PanelContainer title={panel.title}>Loading…</PanelContainer>;
-  if (hasError) return <PanelContainer title={panel.title}>One or more data sources failed to load</PanelContainer>;
+  if (hasError) {
+    return (
+      <PanelContainer title={panel.title}>
+        {sources.map((s) => (
+          <SourceRowsFetcher key={s.dataSourceId} source={s} dataSources={dataSources} onResult={handleResult} />
+        ))}
+        One or more data sources failed to load
+      </PanelContainer>
+    );
+  }
 
   return (
     <PanelContainer
@@ -195,40 +203,47 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
         )
       }
     >
+      {/* Rendered unconditionally (not gated behind isLoading) - these are what actually DRIVE
+          isLoading to false in the first place, via onResult; an early return before they ever
+          mount would leave every source's isLoading flag stuck at its initial `true` forever. */}
       {sources.map((s) => (
         <SourceRowsFetcher key={s.dataSourceId} source={s} dataSources={dataSources} onResult={handleResult} />
       ))}
-      <MaterialReactTable
-        columns={columns}
-        data={rows}
-        enableStickyHeader
-        initialState={{ density: 'compact' }}
-        muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
-        muiTableContainerProps={{ sx: { flex: 1 } }}
-        {...(showZoomColumn && {
-          enableRowActions: true,
-          positionActionsColumn: 'first',
-          displayColumnDefOptions: { 'mrt-row-actions': { header: '', size: 50, grow: false } },
-          renderRowActions: ({ row }: { row: { original: Row } }) => {
-            const source = getRowSource(row.original);
-            if (!source?.mapPanelId || !source.layerId || !canZoomToFeature(row.original)) return null;
-            const mapPanelId = source.mapPanelId;
-            const layerId = source.layerId;
-            return (
-              <Tooltip title="Zoom to feature">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Zoom to feature"
-                  onClick={() => void getMapHandle(mapPanelId)?.zoomToFeature(layerId, row.original)}
-                >
-                  <ZoomInIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            );
-          },
-        })}
-      />
+      {isLoading ? (
+        'Loading…'
+      ) : (
+        <MaterialReactTable
+          columns={columns}
+          data={rows}
+          enableStickyHeader
+          initialState={{ density: 'compact' }}
+          muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column' } }}
+          muiTableContainerProps={{ sx: { flex: 1 } }}
+          {...(showZoomColumn && {
+            enableRowActions: true,
+            positionActionsColumn: 'first',
+            displayColumnDefOptions: { 'mrt-row-actions': { header: '', size: 50, grow: false } },
+            renderRowActions: ({ row }: { row: { original: Row } }) => {
+              const source = getRowSource(row.original);
+              if (!source?.mapPanelId || !source.layerId || !canZoomToFeature(row.original)) return null;
+              const mapPanelId = source.mapPanelId;
+              const layerId = source.layerId;
+              return (
+                <Tooltip title="Zoom to feature">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Zoom to feature"
+                    onClick={() => void getMapHandle(mapPanelId)?.zoomToFeature(layerId, row.original)}
+                  >
+                    <ZoomInIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              );
+            },
+          })}
+        />
+      )}
     </PanelContainer>
   );
 }
