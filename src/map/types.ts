@@ -1,5 +1,11 @@
 export type LayerGeometryType = 'point' | 'line' | 'polygon' | 'unknown';
 
+// [minX, minY, maxX, maxY], always in the map's own view projection - both the view's current
+// extent (getViewExtent/onViewExtentChanged below) and a row's own geometry extent (attached by
+// getLayerFeatures(), see src/map/rowExtent.ts) are produced from the SAME MapViewer, so they're
+// always directly comparable with no reprojection needed.
+export type MapExtent = [number, number, number, number];
+
 export interface DashboardMapLayerInfo {
   id: string;
   name: string;
@@ -54,5 +60,11 @@ export interface DashboardMapHandle {
   // `row` is matched back to a real feature by its id field's value (one of `row`'s own plain
   // values, already present from `getLayerFeatures()`). No-ops if that can't be resolved.
   zoomToFeature(layerId: string, row: Record<string, unknown>): Promise<void>;
+  // The map's current view extent, or undefined if the map doesn't have a real pixel size yet to
+  // compute one from.
+  getViewExtent(): MapExtent | undefined;
+  // Fires whenever the view's extent changes (pan/zoom) - only once the move/zoom settles, not on
+  // every intermediate frame. Returns an unsubscribe function.
+  onViewExtentChanged(callback: (extent: MapExtent) => void): () => void;
 }
 

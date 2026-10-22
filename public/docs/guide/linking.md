@@ -47,6 +47,13 @@ interactions?: {
   the chart never listed is left untouched regardless of what's selected, using a reserved field
   key rather than a real row field - don't reuse that same channel for a normal row-field filter
   too (see the dual-value-space note below).
+- A `map` panel can also **emit** - with `interactions.emits` set, it publishes its current view
+  extent onto those channel(s) on every pan/zoom (see "Filtering other panels to the current map
+  view" under `map` in [Panels](guide/panels.md)). `chart`/`table` panels listening to the same
+  channel can restrict their own rows to the current map view (`filterToMapView`, on by default).
+  Unlike the legend's own channel caveat below, this one's reserved field is safe to share with a
+  normal filter/chart channel at the same time (e.g. `cesi-filter` carrying both a filter panel's
+  own field selections AND the map's view extent) - it's never swept into per-row field matching.
 - A panel's `dataSource` is independent of its channels - a panel only reacts to a channel's
   *values*, it never assumes those values came from its own data source.
 

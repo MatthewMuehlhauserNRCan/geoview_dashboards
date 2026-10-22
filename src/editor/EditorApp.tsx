@@ -243,6 +243,7 @@ export function EditorApp() {
             <PanelInspector
               pageId={page.id}
               panel={selectedPanel}
+              pagePanels={page.panels}
               dataSources={config.dataSources}
               channels={config.linking?.channels ?? []}
               mapPanelOptions={mapPanelOptions}

@@ -16,6 +16,21 @@ export const CHART_SOURCE_FIELD = '__chartSource';
 // "deliberately filtered out" from "never part of this chart to begin with".
 export const CHART_SOURCE_UNIVERSE_FIELD = '__chartSourceUniverse';
 
+// Reserved field carrying a map panel's current view extent (4 stringified numbers - [minX,
+// minY, maxX, maxY] - see MapExtent in src/map/types.ts) - a map panel with `interactions.emits`
+// set publishes this on every pan/zoom. Chart/table panels read it via getViewExtentFromFilter()
+// below and do their own geometry-extent intersection test (src/map/rowExtent.ts), NOT plain
+// per-field string matching, so it's never swept into rowMatchesFieldFilter's generic comparison
+// (see that function's own `__`-prefix skip, just below).
+export const MAP_VIEW_EXTENT_FIELD = '__mapViewExtent';
+
+export function getViewExtentFromFilter(filter: FieldFilterValue | undefined): [number, number, number, number] | undefined {
+  const raw = filter?.[MAP_VIEW_EXTENT_FIELD];
+  if (!raw || raw.length !== 4) return undefined;
+  const numbers = raw.map(Number);
+  return numbers.every((n) => Number.isFinite(n)) ? (numbers as [number, number, number, number]) : undefined;
+}
+
 export function isFieldFilterValue(value: unknown): value is FieldFilterValue {
   return (
     typeof value === 'object' &&
@@ -43,6 +58,13 @@ export function makeCompositeValue(values: (string | number)[]): string {
 export function rowMatchesFieldFilter(row: Record<string, unknown>, filter: unknown): boolean {
   if (!isFieldFilterValue(filter)) return true;
   return Object.entries(filter).every(([field, values]) => {
+    // Reserved virtual fields (CHART_SOURCE_FIELD, MAP_VIEW_EXTENT_FIELD, ...) aren't real row
+    // fields - a channel merges every listening contributor's fields together, so one of these
+    // could legitimately end up alongside real field filters on the same merged channel value.
+    // Each is read directly by whichever panel type understands it, not swept into this generic
+    // per-row comparison (which would otherwise zero out every row, since none of them actually
+    // have a `__...`-named field).
+    if (field.startsWith('__')) return true;
     if (values.length === 0) return true;
     const rowValue = field.includes(COMPOSITE_FIELD_SEPARATOR)
       ? makeCompositeValue(field.split(COMPOSITE_FIELD_SEPARATOR).map((subField) => row[subField] as string | number))

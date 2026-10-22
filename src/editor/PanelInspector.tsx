@@ -8,11 +8,16 @@ import {
   Button,
   Checkbox,
   Chip,
+  Dialog,
+  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
   IconButton,
   InputLabel,
+  List,
+  ListItemButton,
+  ListItemText,
   MenuItem,
   Select,
   Stack,
@@ -21,6 +26,7 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
+import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import MapIcon from '@mui/icons-material/Map';
 import DatasetIcon from '@mui/icons-material/Dataset';
 import type { DataSourceConfig, GridPanel, LeafPanelConfig, LinkingChannel } from '../config/types';
@@ -29,6 +35,7 @@ import { useEditorStore } from './store';
 import { AddPanelDialog } from './AddPanelDialog';
 import { ChartSourcesDialog } from './ChartSourcesDialog';
 import { ChartColorsDialog } from './ChartColorsDialog';
+import { TableSourcesDialog } from './TableSourcesDialog';
 import { generateId } from './idUtils';
 
 interface MapPanelOption {
@@ -56,6 +63,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   const [configError, setConfigError] = useState<string | undefined>();
   const [chartSourcesDialogOpen, setChartSourcesDialogOpen] = useState(false);
   const [chartColorsDialogOpen, setChartColorsDialogOpen] = useState(false);
+  const [tableSourcesDialogOpen, setTableSourcesDialogOpen] = useState(false);
 
   const commitConfigText = () => {
     try {
@@ -68,21 +76,30 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   };
 
   const selectedDataSource = dataSources.find((ds) => ds.id === leafPanel.dataSource);
+  const isMultiSourcePanel = leafPanel.type === 'chart' || leafPanel.type === 'table';
   const isChartMultiSource = leafPanel.type === 'chart' && Boolean(leafPanel.sources?.length);
-  const chartSourceIds =
-    leafPanel.type === 'chart'
-      ? (leafPanel.sources?.length ? leafPanel.sources.map((s) => s.dataSourceId) : leafPanel.dataSource ? [leafPanel.dataSource] : [])
-      : [];
+  const multiSourceIds = isMultiSourcePanel
+    ? (leafPanel.sources?.length ? leafPanel.sources.map((s) => s.dataSourceId) : leafPanel.dataSource ? [leafPanel.dataSource] : [])
+    : [];
 
-  // One control covers both "a single chart grouped by a field" and "one value per data source" -
-  // picking 1 data source behaves like the former, picking several switches to the latter
-  // (preserving any labels already set for ids that stay selected).
-  const handleChartDataSourceChange = (next: string[]) => {
+  // One control covers both "a single chart/table using one data source" and "one value per data
+  // source"/"one merged table from several data sources" - picking 1 behaves like the former,
+  // picking several switches to the latter (preserving any labels already set for ids that stay
+  // selected). Shared between `chart` and `table`, the only two panel types with a `sources` mode.
+  function nextSourcesFromIds(next: string[], existing: { dataSourceId: string; label?: string }[] | undefined) {
+    return next.map((id) => existing?.find((s) => s.dataSourceId === id) ?? { dataSourceId: id });
+  }
+  const handleMultiSourceDataSourceChange = (next: string[]) => {
     onChange((p) => {
-      if (p.type !== 'chart') return p;
-      if (next.length <= 1) return { ...p, dataSource: next[0], sources: undefined };
-      const existing = p.sources ?? [];
-      return { ...p, dataSource: undefined, sources: next.map((id) => existing.find((s) => s.dataSourceId === id) ?? { dataSourceId: id }) };
+      if (p.type === 'chart') {
+        if (next.length <= 1) return { ...p, dataSource: next[0], sources: undefined };
+        return { ...p, dataSource: undefined, sources: nextSourcesFromIds(next, p.sources) };
+      }
+      if (p.type === 'table') {
+        if (next.length <= 1) return { ...p, dataSource: next[0], sources: undefined };
+        return { ...p, dataSource: undefined, sources: nextSourcesFromIds(next, p.sources) };
+      }
+      return p;
     });
   };
 
@@ -96,13 +113,13 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
         fullWidth
         onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
       />
-      {leafPanel.type === 'chart' ? (
+      {isMultiSourcePanel ? (
         <FormControl size="small" fullWidth>
           <InputLabel>Data source(s)</InputLabel>
           <Select
             multiple
             label="Data source(s)"
-            value={chartSourceIds}
+            value={multiSourceIds}
             renderValue={(selected) => (
               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                 {(selected as string[]).map((id) => (
@@ -112,18 +129,19 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             )}
             onChange={(e) => {
               const value = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
-              handleChartDataSourceChange(value);
+              handleMultiSourceDataSourceChange(value);
             }}
           >
             {dataSources.map((ds) => (
-              <MenuItem key={ds.id} value={ds.id} title={`${ds.id} (${ds.type})`} selected={chartSourceIds.includes(ds.id)}>
+              <MenuItem key={ds.id} value={ds.id} title={`${ds.id} (${ds.type})`} selected={multiSourceIds.includes(ds.id)}>
                 {ds.id} ({ds.type})
               </MenuItem>
             ))}
           </Select>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-            Pick one for a single chart grouped by Field (below), or several for one value per data
-            source (e.g. one bar per sublayer) - not supported for scatter.
+            {leafPanel.type === 'chart'
+              ? "Pick one for a single chart grouped by Field (below), or several for one value per data source (e.g. one bar per sublayer) - not supported for scatter."
+              : 'Pick one for a single table, or several to merge their rows into one table (adds a "Source" column).'}
           </Typography>
         </FormControl>
       ) : (
@@ -211,6 +229,12 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
 
       {leafPanel.type === 'map' && (
         <Stack spacing={1}>
+          <Alert severity="info">
+            "Emits" above has a special meaning for a map: when set, this map publishes its current
+            view extent onto those channel(s) as the viewer pans/zooms. Chart/table panels
+            listening to the same channel can then filter their own rows down to just what's
+            currently visible on the map (on by default, with a viewer-facing toggle).
+          </Alert>
           <TextField
             label="Config URL"
             placeholder="https://example.com/maps/my-map-config.json"
@@ -353,6 +377,19 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               />
             </Box>
           )}
+          <FormControlLabel
+            label="Filter to current map view, when available"
+            control={
+              <Checkbox
+                checked={leafPanel.filterToMapView ?? true}
+                onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, filterToMapView: e.target.checked } : p))}
+              />
+            }
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+            Only applies while a listened channel is a map panel publishing its view extent (see the
+            map panel's own "Emits" note) - the viewer can still toggle this off at runtime.
+          </Typography>
         </Stack>
       )}
 
@@ -479,24 +516,54 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
       )}
 
       {leafPanel.type === 'table' && (
-        <FormControl size="small" fullWidth>
-          <InputLabel>Zoom to feature row action</InputLabel>
-          <Select
-            label="Zoom to feature row action"
-            value={leafPanel.showZoomToFeature === undefined ? 'auto' : leafPanel.showZoomToFeature ? 'show' : 'hide'}
-            onChange={(e) =>
-              onChange((p) =>
-                p.type === 'table'
-                  ? { ...p, showZoomToFeature: e.target.value === 'auto' ? undefined : e.target.value === 'show' }
-                  : p,
-              )
+        <Stack spacing={1}>
+          {Boolean(leafPanel.sources?.length) && (
+            <Box>
+              <Button size="small" variant="outlined" startIcon={<DatasetIcon />} onClick={() => setTableSourcesDialogOpen(true)}>
+                Customize labels
+              </Button>
+              <TableSourcesDialog
+                open={tableSourcesDialogOpen}
+                onClose={() => setTableSourcesDialogOpen(false)}
+                sources={leafPanel.sources ?? []}
+                onChange={(next) => onChange((p) => (p.type === 'table' ? { ...p, sources: next } : p))}
+              />
+            </Box>
+          )}
+          <FormControl size="small" fullWidth>
+            <InputLabel>Zoom to feature row action</InputLabel>
+            <Select
+              label="Zoom to feature row action"
+              value={leafPanel.showZoomToFeature === undefined ? 'auto' : leafPanel.showZoomToFeature ? 'show' : 'hide'}
+              onChange={(e) =>
+                onChange((p) =>
+                  p.type === 'table'
+                    ? { ...p, showZoomToFeature: e.target.value === 'auto' ? undefined : e.target.value === 'show' }
+                    : p,
+                )
+              }
+            >
+              <MenuItem value="auto">
+                {leafPanel.sources?.length ? 'Auto-detect (checked per row)' : 'Auto-detect (only shown when the map layer supports it)'}
+              </MenuItem>
+              <MenuItem value="show">Always show</MenuItem>
+              <MenuItem value="hide">Always hide</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            label="Filter to current map view, when available"
+            control={
+              <Checkbox
+                checked={leafPanel.filterToMapView ?? true}
+                onChange={(e) => onChange((p) => (p.type === 'table' ? { ...p, filterToMapView: e.target.checked } : p))}
+              />
             }
-          >
-            <MenuItem value="auto">Auto-detect (only shown when the map layer supports it)</MenuItem>
-            <MenuItem value="show">Always show</MenuItem>
-            <MenuItem value="hide">Always hide</MenuItem>
-          </Select>
-        </FormControl>
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+            Only applies while a listened channel is a map panel publishing its view extent (see the
+            map panel's own "Emits" note) - the viewer can still toggle this off at runtime.
+          </Typography>
+        </Stack>
       )}
 
       {leafPanel.type === 'filter' && (
@@ -587,13 +654,15 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
 interface PanelInspectorProps {
   pageId: string;
   panel: import('../config/types').GridPanel;
+  pagePanels: GridPanel[];
   dataSources: DataSourceConfig[];
   channels: LinkingChannel[];
   mapPanelOptions: MapPanelOption[];
 }
 
-export function PanelInspector({ pageId, panel, dataSources, channels, mapPanelOptions }: PanelInspectorProps) {
+export function PanelInspector({ pageId, panel, pagePanels, dataSources, channels, mapPanelOptions }: PanelInspectorProps) {
   const updatePanel = useEditorStore((s) => s.updatePanel);
+  const promoteToContainer = useEditorStore((s) => s.promoteToContainer);
 
   const updateTop = (updater: (p: typeof panel) => typeof panel) => updatePanel(pageId, panel.id, updater as never);
 
@@ -628,6 +697,7 @@ export function PanelInspector({ pageId, panel, dataSources, channels, mapPanelO
         <NestedPanelList
           pageId={pageId}
           panel={panel}
+          siblingPanels={pagePanels.filter((p) => p.id !== panel.id && p.type !== 'tab' && p.type !== 'stack')}
           dataSources={dataSources}
           channels={channels}
           mapPanelOptions={mapPanelOptions}
@@ -638,14 +708,27 @@ export function PanelInspector({ pageId, panel, dataSources, channels, mapPanelO
   }
 
   return (
-    <LeafPanelFields
-      key={panel.id}
-      leafPanel={panel}
-      dataSources={dataSources}
-      channels={channels}
-      mapPanelOptions={mapPanelOptions}
-      onChange={(updater) => updateTop((p) => updater(p as LeafPanelConfig) as typeof p)}
-    />
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Typography variant="caption" color="text.secondary">
+          Promote to:
+        </Typography>
+        <Button size="small" variant="outlined" onClick={() => promoteToContainer(pageId, panel.id, 'tab')}>
+          Tabs
+        </Button>
+        <Button size="small" variant="outlined" onClick={() => promoteToContainer(pageId, panel.id, 'stack')}>
+          Split
+        </Button>
+      </Stack>
+      <LeafPanelFields
+        key={panel.id}
+        leafPanel={panel}
+        dataSources={dataSources}
+        channels={channels}
+        mapPanelOptions={mapPanelOptions}
+        onChange={(updater) => updateTop((p) => updater(p as LeafPanelConfig) as typeof p)}
+      />
+    </Stack>
   );
 }
 
@@ -660,6 +743,7 @@ type NestedHostPanel = GridTabPanel | GridStackPanel;
 interface NestedPanelListProps {
   pageId: string;
   panel: NestedHostPanel;
+  siblingPanels: GridPanel[];
   dataSources: DataSourceConfig[];
   channels: LinkingChannel[];
   mapPanelOptions: MapPanelOption[];
@@ -668,8 +752,11 @@ interface NestedPanelListProps {
 
 // `tab`/`stack` both hold a list of nested leaf panels (tabs[].panel / items), each editable
 // inline via an accordion reusing the same LeafPanelFields form as a top-level panel.
-function NestedPanelList({ panel, dataSources, channels, mapPanelOptions, updateTop }: NestedPanelListProps) {
+function NestedPanelList({ pageId, panel, siblingPanels, dataSources, channels, mapPanelOptions, updateTop }: NestedPanelListProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const demoteFromContainer = useEditorStore((s) => s.demoteFromContainer);
+  const movePanelIntoContainer = useEditorStore((s) => s.movePanelIntoContainer);
   const isTab = panel.type === 'tab';
   const entries: { key: string; label: string; leaf: LeafPanelConfig }[] = isTab
     ? (panel as GridTabPanel).tabs.map((t) => ({ key: t.id, label: t.label, leaf: t.panel }))
@@ -708,15 +795,27 @@ function NestedPanelList({ panel, dataSources, channels, mapPanelOptions, update
               <Typography variant="body2">
                 {label} ({PANEL_TYPE_LABELS[leaf.type]})
               </Typography>
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeEntry(key);
-                }}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+              <Box>
+                <IconButton
+                  size="small"
+                  title="Extract to top-level grid"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    demoteFromContainer(pageId, panel.id, key);
+                  }}
+                >
+                  <OpenInFullIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeEntry(key);
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
           </AccordionSummary>
           <AccordionDetails>
@@ -735,9 +834,14 @@ function NestedPanelList({ panel, dataSources, channels, mapPanelOptions, update
           </AccordionDetails>
         </Accordion>
       ))}
-      <Button size="small" onClick={() => setAddDialogOpen(true)}>
-        {isTab ? 'Add tab' : 'Add item'}
-      </Button>
+      <Stack direction="row" spacing={1}>
+        <Button size="small" onClick={() => setAddDialogOpen(true)}>
+          {isTab ? 'Add tab' : 'Add item'}
+        </Button>
+        <Button size="small" disabled={siblingPanels.length === 0} onClick={() => setImportDialogOpen(true)}>
+          Import existing panel
+        </Button>
+      </Stack>
       <NestedAddDialog
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
@@ -751,6 +855,12 @@ function NestedPanelList({ panel, dataSources, channels, mapPanelOptions, update
               : { ...(p as GridStackPanel), items: [...(p as GridStackPanel).items, leaf] },
           );
         }}
+      />
+      <ImportPanelDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        panels={siblingPanels}
+        onPick={(panelId) => movePanelIntoContainer(pageId, panel.id, panelId)}
       />
     </Stack>
   );
@@ -770,6 +880,42 @@ function NestedAddDialog({ open, onClose, onPick }: NestedAddDialogProps) {
       types={LEAF_PANEL_TYPES}
       onPick={(type) => onPick(createDefaultLeafPanel(type as LeafPanelConfig['type']))}
     />
+  );
+}
+
+interface ImportPanelDialogProps {
+  open: boolean;
+  onClose: () => void;
+  panels: GridPanel[];
+  onPick: (panelId: string) => void;
+}
+
+// Lists the page's other top-level leaf panels (tab/stack panels themselves are excluded - the
+// schema doesn't support nesting a container inside another container) so an author can move an
+// EXISTING panel into this tab/stack instead of re-creating the same panel from scratch inside it.
+function ImportPanelDialog({ open, onClose, panels, onPick }: ImportPanelDialogProps) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Import existing panel</DialogTitle>
+      <List sx={{ pt: 0 }}>
+        {panels.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ px: 2, pb: 2 }}>
+            No other eligible panels on this page.
+          </Typography>
+        )}
+        {panels.map((p) => (
+          <ListItemButton
+            key={p.id}
+            onClick={() => {
+              onPick(p.id);
+              onClose();
+            }}
+          >
+            <ListItemText primary={p.title || p.id} secondary={PANEL_TYPE_LABELS[p.type]} />
+          </ListItemButton>
+        ))}
+      </List>
+    </Dialog>
   );
 }
 

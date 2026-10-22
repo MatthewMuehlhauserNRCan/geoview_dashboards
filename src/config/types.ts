@@ -29,6 +29,11 @@ export interface MapPanelConfig extends BasePanelConfig {
   // keeps a complex map config out of the (often hand-authored) dashboard config. If both are set,
   // `configUrl` wins (its fetched value is used, `config` is ignored).
   configUrl?: string;
+  // NOTE: `interactions.emits` (inherited from BasePanelConfig) has a special meaning for a map
+  // panel - when set, it publishes the map's current VIEW EXTENT onto those channels (updated on
+  // every pan/zoom), not a click selection like other panel types. Chart/table panels listening
+  // to the same channel can then optionally filter their own rows down to just the current map
+  // view (see ChartPanelConfig.filterToMapView / TablePanelConfig.filterToMapView).
 }
 
 export interface ChartPanelConfig extends BasePanelConfig {
@@ -60,6 +65,11 @@ export interface ChartPanelConfig extends BasePanelConfig {
   // addition) to the legend - most useful with `legendPosition: 'none'` when there are many
   // categories and a long side legend is still more than wanted.
   showSliceLabels?: boolean;
+  // Whether this chart's rows are restricted to the current map view extent, when a listened
+  // channel actually carries one (published by a map panel with `interactions.emits` set) -
+  // ignored entirely otherwise. Defaults to true (on by default); the viewer can still toggle it
+  // off at runtime via a switch that only appears once a view extent is actually available.
+  filterToMapView?: boolean;
 }
 
 export interface StatPanelConfig extends BasePanelConfig {
@@ -82,10 +92,23 @@ export interface StatPanelConfig extends BasePanelConfig {
 export interface TablePanelConfig extends BasePanelConfig {
   type: 'table';
   // Shows/hides the "zoom to feature" row action (only possible when `dataSource` is a
-  // `map-layer` source with an identifiable id field) - auto-detected when omitted. It's an
-  // all-or-nothing, layer-level thing (not checked per row): either every row gets the action or
-  // none do, since a layer's rows all share the same schema.
+  // `map-layer` source with an identifiable id field) - auto-detected when omitted. In
+  // single-source mode this is all-or-nothing (not checked per row): either every row gets the
+  // action or none do, since one layer's rows all share the same schema. In multi-source mode
+  // (`sources` set) it's checked per row instead, since a merged table's rows no longer all come
+  // from the same layer - `false` still always hides it entirely either way.
   showZoomToFeature?: boolean;
+  // Whether this table's rows are restricted to the current map view extent, when a listened
+  // channel actually carries one (published by a map panel with `interactions.emits` set) -
+  // ignored entirely otherwise. Defaults to true (on by default); the viewer can still toggle it
+  // off at runtime via a switch that only appears once a view extent is actually available.
+  filterToMapView?: boolean;
+  // Alternative to `dataSource`: combines rows from MULTIPLE data sources into one table instead
+  // of showing just one - e.g. every sublayer of a group layer, without needing a separate tab per
+  // layer. Mutually exclusive with `dataSource` (when set, it's ignored). Adds a "Source" column
+  // identifying which data source each row came from (label defaults to its map layer name, or
+  // its id otherwise; `label` overrides this per entry).
+  sources?: { dataSourceId: string; label?: string }[];
 }
 
 export interface LegendPanelConfig extends BasePanelConfig {

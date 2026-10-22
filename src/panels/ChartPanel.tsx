@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { alpha, darken, lighten, useTheme } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
-import { Button, Typography } from '@mui/material';
+import { Button, FormControlLabel, Stack, Switch, Typography } from '@mui/material';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -22,9 +22,16 @@ import type { ChartPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels, useSetChannelField } from '../linking/useChannel';
-import { rowMatchesFieldFilter, CHART_SOURCE_FIELD, CHART_SOURCE_UNIVERSE_FIELD, type FieldFilterValue } from '../linking/rowFilter';
+import {
+  rowMatchesFieldFilter,
+  CHART_SOURCE_FIELD,
+  CHART_SOURCE_UNIVERSE_FIELD,
+  getViewExtentFromFilter,
+  type FieldFilterValue,
+} from '../linking/rowFilter';
+import { rowPassesViewExtent } from '../map/rowExtent';
 import { groupAndAggregate, describeAggregation } from '../dataSources/aggregate';
-import { useMapHandle } from '../map/registry';
+import { SourceRowsFetcher, type SourceRowsResult } from '../dataSources/SourceRowsFetcher';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, ChartDataLabels);
 
@@ -89,15 +96,24 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
   const setField = useSetChannelField(channel);
   const rows = useMemo(() => data ?? [], [data]);
 
+  // Only defined once some listened channel is actually carrying a map's current view extent
+  // (see MapPanelConfig's `interactions.emits` doc) - the toggle below only appears then too.
+  const viewExtent = useMemo(() => getViewExtentFromFilter(filterValue), [filterValue]);
+  const [filterToMapView, setFilterToMapView] = useState(panel.filterToMapView ?? true);
+
   // Cross-filtered by every OTHER active field, but deliberately NOT by this chart's own field -
   // otherwise clicking a bar would immediately erase every other bar, with no way to pick a
   // different one (or see the bigger picture) afterwards.
   const groupByField = panel.field;
   const displayRows = useMemo(() => {
-    if (!groupByField || !filterValue) return rows;
-    const otherFilters = Object.fromEntries(Object.entries(filterValue).filter(([field]) => field !== groupByField));
-    return rows.filter((row) => rowMatchesFieldFilter(row, otherFilters));
-  }, [rows, filterValue, groupByField]);
+    let result = rows;
+    if (groupByField && filterValue) {
+      const otherFilters = Object.fromEntries(Object.entries(filterValue).filter(([field]) => field !== groupByField));
+      result = result.filter((row) => rowMatchesFieldFilter(row, otherFilters));
+    }
+    if (viewExtent && filterToMapView) result = result.filter((row) => rowPassesViewExtent(row, viewExtent));
+    return result;
+  }, [rows, filterValue, groupByField, viewExtent, filterToMapView]);
 
   const grouped = useMemo(
     () => (groupByField ? groupAndAggregate(displayRows, groupByField, panel.aggregation ?? 'count', panel.valueField) : undefined),
@@ -128,7 +144,18 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
     }
     const [xKey, yKey] = numericKeys;
     return (
-      <PanelContainer title={panel.title}>
+      <PanelContainer
+        title={panel.title}
+        headerAction={
+          viewExtent && (
+            <FormControlLabel
+              sx={{ m: 0, bgcolor: 'background.paper' }}
+              control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
+              label="Map view"
+            />
+          )
+        }
+      >
         <Scatter
           aria-label={`${panel.title ?? 'Scatter chart'}: ${yKey} versus ${xKey}`}
           data={{
@@ -213,10 +240,21 @@ export function ChartPanel({ panel, dataSources }: ChartPanelProps) {
     <PanelContainer
       title={panel.title}
       headerAction={
-        selectedValues.length > 0 && (
-          <Button size="small" onClick={() => groupByField && setField(groupByField, [])}>
-            Clear selection
-          </Button>
+        (selectedValues.length > 0 || viewExtent) && (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            {viewExtent && (
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
+                label="Map view"
+              />
+            )}
+            {selectedValues.length > 0 && (
+              <Button size="small" onClick={() => groupByField && setField(groupByField, [])}>
+                Clear selection
+              </Button>
+            )}
+          </Stack>
         )
       }
     >
@@ -250,13 +288,6 @@ function makeGroupClickHandler(
 
 type ChartSource = NonNullable<ChartPanelConfig['sources']>[number];
 
-interface SourceResult {
-  label: string;
-  rows: Row[];
-  isLoading: boolean;
-  error: boolean;
-}
-
 interface MultiSourceChartProps {
   panel: ChartPanelConfig;
   dataSources: DataSourceConfig[];
@@ -269,7 +300,7 @@ interface MultiSourceChartProps {
 // - the chart itself only ever displays the count.
 function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps) {
   const theme = useTheme();
-  const [results, setResults] = useState<Record<string, SourceResult>>({});
+  const [results, setResults] = useState<Record<string, SourceRowsResult>>({});
 
   // Selection is routed through the SAME linking-channel system every other panel uses, via a
   // reserved virtual field (CHART_SOURCE_FIELD) whose values are selected `dataSourceId`s - not a
@@ -282,6 +313,9 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
   const filterValue = useListenChannels(listenChannels);
   const setField = useSetChannelField(channel);
   const selectedSourceIds = useMemo(() => filterValue?.[CHART_SOURCE_FIELD] ?? [], [filterValue]);
+  // Only defined once some listened channel is actually carrying a map's current view extent.
+  const viewExtent = useMemo(() => getViewExtentFromFilter(filterValue), [filterValue]);
+  const [filterToMapView, setFilterToMapView] = useState(panel.filterToMapView ?? true);
 
   // A listening map panel needs to know every `dataSourceId` this chart COULD select from, not
   // just the currently-selected ones - otherwise it can't tell "deliberately filtered out" apart
@@ -292,14 +326,21 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
 
   // Each SourceRowsFetcher below is its own component instance with its own hooks, so a
   // variable-length `sources` list is safe (not a dynamic number of hook calls in ONE component).
-  const handleResult = useCallback((dataSourceId: string, result: SourceResult) => {
+  const handleResult = useCallback((dataSourceId: string, result: SourceRowsResult) => {
     setResults((prev) => ({ ...prev, [dataSourceId]: result }));
   }, []);
 
   const isLoading = sources.some((s) => results[s.dataSourceId]?.isLoading ?? true);
   const hasError = sources.some((s) => results[s.dataSourceId]?.error);
   const labels = sources.map((s) => results[s.dataSourceId]?.label ?? s.label ?? s.dataSourceId);
-  const values = sources.map((s) => results[s.dataSourceId]?.rows.length ?? 0);
+  const values = useMemo(
+    () =>
+      sources.map((s) => {
+        const sourceRows = results[s.dataSourceId]?.rows ?? [];
+        return viewExtent && filterToMapView ? sourceRows.filter((row) => rowPassesViewExtent(row, viewExtent)).length : sourceRows.length;
+      }),
+    [sources, results, viewExtent, filterToMapView],
+  );
 
   // Clicking toggles that source's id in/out of the selection (multiple can be selected at once).
   const handleClick = useCallback(
@@ -347,10 +388,21 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
     <PanelContainer
       title={panel.title}
       headerAction={
-        selectedSourceIds.length > 0 && (
-          <Button size="small" onClick={() => setField(CHART_SOURCE_FIELD, [])}>
-            Clear selection
-          </Button>
+        (selectedSourceIds.length > 0 || viewExtent) && (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            {viewExtent && (
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
+                label="Map view"
+              />
+            )}
+            {selectedSourceIds.length > 0 && (
+              <Button size="small" onClick={() => setField(CHART_SOURCE_FIELD, [])}>
+                Clear selection
+              </Button>
+            )}
+          </Stack>
         )
       }
     >
@@ -383,31 +435,6 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
       )}
     </PanelContainer>
   );
-}
-
-// Invisible - just fetches one data source and reports its rows/default label up to the parent
-// chart, so a variable number of sources can each own their own hooks safely (see above).
-function SourceRowsFetcher({
-  source,
-  dataSources,
-  onResult,
-}: {
-  source: ChartSource;
-  dataSources: DataSourceConfig[];
-  onResult: (dataSourceId: string, result: SourceResult) => void;
-}) {
-  const { data, isLoading, error } = useDataSource(source.dataSourceId, dataSources);
-  const matchedSource = dataSources.find((d) => d.id === source.dataSourceId);
-  const mapHandle = useMapHandle(matchedSource?.type === 'map-layer' ? matchedSource.mapPanelId : '');
-  const defaultLabel =
-    matchedSource?.type === 'map-layer' ? mapHandle?.listLayers().find((l) => l.id === matchedSource.layerId)?.name : undefined;
-  const label = source.label ?? defaultLabel ?? source.dataSourceId;
-
-  useEffect(() => {
-    onResult(source.dataSourceId, { label, rows: data ?? [], isLoading, error: Boolean(error) });
-  }, [source.dataSourceId, label, data, isLoading, error, onResult]);
-
-  return null;
 }
 
 function pickAxisKeys(rows: Row[]): { labelKey?: string; valueKey?: string } {

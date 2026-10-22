@@ -48,6 +48,26 @@ viewed - there's no bundling/packaging step that inlines it for you.
 Other panels read a map panel's layers via a `map-layer` [data source](guide/data-sources.md)
 that references this panel's own `id` as `mapPanelId`.
 
+### Filtering other panels to the current map view
+
+A map panel's `interactions.emits` has a different meaning than on every other panel type -
+instead of publishing a click selection, it publishes the map's current VIEW EXTENT onto those
+channel(s), updated on every pan/zoom:
+
+```json
+{ "type": "map", "id": "main-map", "config": { ... }, "interactions": { "emits": ["map-view"] } }
+```
+
+A `chart` or `table` panel that `listensTo` the same channel can then restrict its own rows to
+only those currently visible on the map (see each panel's own `filterToMapView` option below) -
+on by default, with a viewer-facing toggle switch that only appears once a view extent is
+actually available. Rows with no resolvable geometry are treated as "not in view" while this
+filtering is active, rather than always shown - in practice this only affects an `esriDynamic`
+layer whose geometry recovery request failed (its normal bulk feature query never includes
+geometry, so this app issues one extra request to get it; every other queryable vector layer type
+already includes geometry on its normal query). Non-queryable raster/image services have no
+per-feature row data at all regardless, so this doesn't apply to them.
+
 ## `chart`
 
 Renders a bar/line/pie/scatter/histogram chart (Chart.js) from its `dataSource`'s rows.
@@ -63,6 +83,7 @@ interface ChartPanelConfig {
   colors?: Record<string, string>; // per-category color overrides, keyed by the field's raw value
   legendPosition?: 'top' | 'right' | 'bottom' | 'left' | 'none'; // defaults to 'right' for pie, 'top' otherwise
   showSliceLabels?: boolean; // 'pie' only - labels each slice directly with its category name
+  filterToMapView?: boolean; // defaults to true - see "Filtering other panels to the current map view" above
 }
 ```
 
@@ -91,6 +112,11 @@ interface ChartPanelConfig {
   once) in whichever channel this panel `emits` to (see [Linking](guide/linking.md)) - clicking an
   already-selected one again removes just that one. A "Clear selection" button appears whenever
   anything is selected.
+- `filterToMapView` (default `true`): when this panel `listensTo` a channel a map panel is
+  publishing its view extent onto, restricts the chart's own rows to just the current map view -
+  see "Filtering other panels to the current map view" under `map` above. Ignored entirely when no
+  such channel is listened to. Applies in multi-source mode too (each source's own row count is
+  restricted before being charted).
 
 ### Multi-source mode
 
@@ -160,20 +186,46 @@ A sortable/filterable/searchable data table (material-react-table) of its `dataS
 interface TablePanelConfig {
   type: 'table';
   showZoomToFeature?: boolean;
+  filterToMapView?: boolean; // defaults to true - see "Filtering other panels to the current map view" under `map` above
+  sources?: { dataSourceId: string; label?: string }[]; // multi-source mode, see below
 }
 ```
 
-- `showZoomToFeature`: only relevant when `dataSource` is a `map-layer` source. Adds a "zoom to
-  feature" row action that pans/zooms the map to a clicked row's feature and highlights it.
+- `showZoomToFeature`: only relevant when the underlying data is a `map-layer` source. Adds a
+  "zoom to feature" row action that pans/zooms the map to a clicked row's feature and highlights it.
   - Omitted (default): auto-detected - shown only when the underlying map layer has an
     identifiable id field GeoView can use to re-locate a feature (most ESRI/vector layers do).
   - `true`: always show it, even if auto-detection says it isn't possible (the button will just
     silently do nothing per row if it genuinely can't resolve a feature).
   - `false`: always hide it.
-  - This is an all-or-nothing decision for the whole table, not checked per row - either every
-    row gets the action, or none do, since a layer's rows all share the same schema. There's
-    currently no support for a plain JSON/CSV `dataSource` (no map layer behind it) to offer this,
-    even if it happens to have latitude/longitude columns.
+  - In single-source mode this is all-or-nothing for the whole table, not checked per row - either
+    every row gets the action, or none do, since one layer's rows all share the same schema. In
+    multi-source mode (`sources` set) it's checked per row instead, since a merged table's rows can
+    come from layers of genuinely different types/capabilities. There's currently no support for a
+    plain JSON/CSV data source (no map layer behind it) to offer this, even if it happens to have
+    latitude/longitude columns.
+- `filterToMapView` (default `true`): when this table `listensTo` a channel a map panel is
+  publishing its view extent onto, restricts the table to just the rows currently visible on the
+  map (a viewer-facing toggle switch appears once this applies). Ignored entirely when no such
+  channel is listened to. Applies per-row across every source in multi-source mode too.
+
+### Multi-source mode
+
+Instead of one `dataSource`, `sources` merges rows from SEVERAL data sources into one table - e.g.
+every sublayer of a group layer, without needing a separate tab per layer. When `sources` is set,
+`dataSource` is ignored.
+
+```json
+{
+  "type": "table",
+  "sources": [{ "dataSourceId": "sublayer-a" }, { "dataSourceId": "sublayer-b", "label": "Custom source label" }]
+}
+```
+
+A "Source" column is added identifying which data source each row came from - defaults to that
+data source's underlying map layer name (for `map-layer` sources) or its id otherwise; `label`
+overrides this per entry. Columns are the UNION of every source's own fields (not just the first
+row's) - a row with no value for some other source's field just shows blank in that column.
 
 ## `legend`
 

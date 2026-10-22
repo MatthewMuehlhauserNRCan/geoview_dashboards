@@ -52,6 +52,7 @@ const chartPanelFields = z.object({
   colors: z.record(z.string(), z.string()).optional(),
   legendPosition: z.enum(['top', 'right', 'bottom', 'left', 'none']).optional(),
   showSliceLabels: z.boolean().optional(),
+  filterToMapView: z.boolean().optional(),
 });
 
 const statGaugeSchema = z.object({
@@ -69,7 +70,18 @@ const statPanelFields = z.object({
   gauge: statGaugeSchema.optional(),
 });
 
-const tablePanelFields = z.object({ ...baseFields, type: z.literal('table'), showZoomToFeature: z.boolean().optional() });
+const tableSourceSchema = z.object({
+  dataSourceId: z.string(),
+  label: z.string().optional(),
+});
+
+const tablePanelFields = z.object({
+  ...baseFields,
+  type: z.literal('table'),
+  showZoomToFeature: z.boolean().optional(),
+  filterToMapView: z.boolean().optional(),
+  sources: z.array(tableSourceSchema).optional(),
+});
 
 const legendPanelFields = z.object({
   ...baseFields,

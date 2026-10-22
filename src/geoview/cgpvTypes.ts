@@ -4,7 +4,7 @@
 // docs/app/accessing-types.md for how it's published/kept in sync). GeoView itself still has no
 // runtime npm package here - it's loaded as a global script (see loadCgpv.ts) - so these are
 // compile-time-only `import type`s/re-exports, erased entirely before bundling.
-export type { MapViewer } from 'geoview-core-types/src/geo/map/map-viewer';
+export type { MapViewer, MapMoveEndDelegate } from 'geoview-core-types/src/geo/map/map-viewer';
 export type { AbstractGVLayer } from 'geoview-core-types/src/geo/layer/gv-layers/abstract-gv-layer';
 export type { TypeFeatureInfoEntry, TypeFeatureInfoResult, TypeLayerStyleConfig } from 'geoview-core-types/src/api/types/map-schema-types';
 export type { DomainLayerStatusChangedDelegate } from 'geoview-core-types/src/core/domains/layer-domain';

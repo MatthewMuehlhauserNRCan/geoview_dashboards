@@ -10,8 +10,8 @@ import { loadCgpv } from '../geoview/loadCgpv';
 import { createGeoviewMapHandle } from '../geoview/mapHandleAdapter';
 import { runMapLifecycleStep } from '../geoview/mapLifecycle';
 import type { MapViewer } from '../geoview/cgpvTypes';
-import { useListenChannels } from '../linking/useChannel';
-import { CHART_SOURCE_FIELD, CHART_SOURCE_UNIVERSE_FIELD } from '../linking/rowFilter';
+import { useListenChannels, setChannelField } from '../linking/useChannel';
+import { CHART_SOURCE_FIELD, CHART_SOURCE_UNIVERSE_FIELD, MAP_VIEW_EXTENT_FIELD } from '../linking/rowFilter';
 
 interface MapPanelProps {
   panel: MapPanelConfig;
@@ -137,6 +137,23 @@ export function MapPanel({ panel, dataSources = [] }: MapPanelProps) {
       mapHandle.setLayerVisible(source.layerId, visible);
     }
   }, [mapHandle, panel.id, dataSources, selectedSourceIds, selectedSourceIdsKey, chartSourceUniverse, chartSourceUniverseKey]);
+
+  // `interactions.emits` on a MAP panel has a different meaning than on every other panel type -
+  // instead of a click selection, it publishes the map's current view extent (updated on every
+  // pan/zoom) so a listening chart/table can optionally filter its own rows down to just what's
+  // currently on screen (see MAP_VIEW_EXTENT_FIELD + rowPassesViewExtent). Memoized so an
+  // `undefined` emits list (-> a fresh `[]` every render) doesn't re-fire the effect below forever.
+  const emitChannels = useMemo(() => panel.interactions?.emits ?? [], [panel.interactions?.emits]);
+  useEffect(() => {
+    if (!mapHandle || emitChannels.length === 0) return undefined;
+    const emit = (extent: [number, number, number, number]) => {
+      const stringExtent = extent.map(String);
+      for (const channel of emitChannels) setChannelField(channel, MAP_VIEW_EXTENT_FIELD, stringExtent);
+    };
+    const initial = mapHandle.getViewExtent();
+    if (initial) emit(initial);
+    return mapHandle.onViewExtentChanged(emit);
+  }, [mapHandle, emitChannels]);
 
   if (panel.configUrl) {
     if (isConfigLoading) {

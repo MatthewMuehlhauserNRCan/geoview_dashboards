@@ -1,5 +1,13 @@
-import type { DashboardLegendItem, DashboardMapHandle, DashboardMapLayerInfo, DashboardMapLegendLayer, LayerGeometryType } from '../map/types';
-import type { DomainLayerStatusChangedDelegate, MapViewer, TypeFeatureInfoEntry, TypeLayerStyleConfig, TypeLegendItem } from './cgpvTypes';
+import type { DashboardLegendItem, DashboardMapHandle, DashboardMapLayerInfo, DashboardMapLegendLayer, LayerGeometryType, MapExtent } from '../map/types';
+import { setRowExtent } from '../map/rowExtent';
+import type {
+  DomainLayerStatusChangedDelegate,
+  MapMoveEndDelegate,
+  MapViewer,
+  TypeFeatureInfoEntry,
+  TypeLayerStyleConfig,
+  TypeLegendItem,
+} from './cgpvTypes';
 
 // Bridges a live GeoView MapViewer to the app's generic DashboardMapHandle contract.
 export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle {
@@ -12,6 +20,13 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
   // a row's real feature by that field's VALUE (itself one of the row's own plain values) rather
   // than by object identity, which breaks across refetches/HMR/stale caches.
   const oidFieldByLayer = new Map<string, string>();
+
+  // Shared by getViewExtent() and onViewExtentChanged() below - undefined only when the map has
+  // no real pixel size yet to compute a view extent from (e.g. not yet laid out).
+  function getViewExtent(): MapExtent | undefined {
+    const size = mapViewer.map.getSize();
+    return size ? (mapViewer.getView().calculateExtent(size) as MapExtent) : undefined;
+  }
 
   return {
     listLayers(): DashboardMapLayerInfo[] {
@@ -41,7 +56,47 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
         );
         if (oidField) oidFieldByLayer.set(layerPath, oidField);
       }
-      return result.results.map(flattenFieldInfo);
+      const rows = result.results.map((entry) => {
+        const row = flattenFieldInfo(entry);
+        // Not every layer type/query includes geometry (e.g. some "all features" bulk queries
+        // strip it for performance - see the zoom-to-feature notes in docs/ARCHITECTURE.md) - rows
+        // without a resolvable extent simply don't participate in map-view-extent filtering later.
+        setRowExtent(row, (entry.extent ?? entry.geometry?.getExtent()) as MapExtent | undefined);
+        return row;
+      });
+
+      // `esriDynamic`'s own "all features" query NEVER includes geometry (GeoView deliberately
+      // strips it there for performance, confirmed in its real source: "We do not query the
+      // geometry anymore") - every other queryable layer type's bulk query does include it. Rather
+      // than leave this layer type permanently unable to participate in map-view-extent filtering,
+      // recover geometry with ONE extra bulk request keyed by OID - `LayerController` (the
+      // `controllers.*` registry, same one MapPanel already uses for resize) exposes exactly this:
+      // `queryLayerEsriDynamic(layerPath, objectIds)` returns features WITH geometry via a single
+      // combined ArcGIS REST query, not one request per feature.
+      const oidField = oidFieldByLayer.get(layerPath);
+      if (oidField && result.results[0]?.geoviewLayerType === 'esriDynamic') {
+        const objectIds = rows.map((row) => Number(row[oidField])).filter((id) => Number.isFinite(id));
+        if (objectIds.length > 0) {
+          try {
+            const withGeometry = await mapViewer.controllers.layerController.queryLayerEsriDynamic(layerPath, objectIds);
+            const extentByOid = new Map<number, MapExtent>();
+            for (const entry of withGeometry) {
+              const oidValue = Number(entry.fieldInfo?.[oidField]?.value);
+              const extent = entry.geometry?.getExtent() as MapExtent | undefined;
+              if (Number.isFinite(oidValue) && extent) extentByOid.set(oidValue, extent);
+            }
+            for (const row of rows) {
+              const extent = extentByOid.get(Number(row[oidField]));
+              if (extent) setRowExtent(row, extent);
+            }
+          } catch {
+            // Best-effort recovery only - rows simply stay without a resolvable extent (same as
+            // any other layer type/query that doesn't carry geometry) if this fails.
+          }
+        }
+      }
+
+      return rows;
     },
     setLayerFilter(layerPath: string, expression: string | undefined) {
       // The 'panel' filter category is specifically reserved for custom filter UIs like ours (as
@@ -134,6 +189,15 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
       // possible here - the bbox flash is the closest meaningful equivalent.
       mapViewer.featureHighlight.removeHighlight('all');
       mapViewer.featureHighlight.highlightGeolocatorBBox(extent, false);
+    },
+    getViewExtent,
+    onViewExtentChanged(callback) {
+      const handler: MapMoveEndDelegate = () => {
+        const extent = getViewExtent();
+        if (extent) callback(extent);
+      };
+      mapViewer.onMapMoveEnd(handler);
+      return () => mapViewer.offMapMoveEnd(handler);
     },
   };
 }
