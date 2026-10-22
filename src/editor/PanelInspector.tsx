@@ -165,7 +165,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           }}
         >
           {channels.map((c) => (
-            <MenuItem key={c.id} value={c.id} selected={(leafPanel.interactions?.emits ?? []).includes(c.id)}>
+            <MenuItem key={c.id} value={c.id} title={c.description || c.id} selected={(leafPanel.interactions?.emits ?? []).includes(c.id)}>
               {c.id}
             </MenuItem>
           ))}
@@ -190,7 +190,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           }}
         >
           {channels.map((c) => (
-            <MenuItem key={c.id} value={c.id} selected={(leafPanel.interactions?.listensTo ?? []).includes(c.id)}>
+            <MenuItem key={c.id} value={c.id} title={c.description || c.id} selected={(leafPanel.interactions?.listensTo ?? []).includes(c.id)}>
               {c.id}
             </MenuItem>
           ))}
