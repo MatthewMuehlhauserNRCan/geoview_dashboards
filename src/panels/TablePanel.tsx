@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
-import { FormControlLabel, IconButton, Switch, Tooltip } from '@mui/material';
+import { FormControlLabel, IconButton, Stack, Switch, Tooltip, Typography } from '@mui/material';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import type { TablePanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
@@ -128,8 +128,13 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
     setResults((prev) => ({ ...prev, [dataSourceId]: result }));
   }, []);
 
-  const isLoading = sources.some((s) => results[s.dataSourceId]?.isLoading ?? true);
-  const hasError = sources.some((s) => results[s.dataSourceId]?.error);
+  // Deliberately NOT "wait until every source has finished" - a single slow or genuinely stuck
+  // source (e.g. a map-layer query that never settles) would otherwise hold up every OTHER
+  // source's already-available data forever. Pending/errored sources are surfaced as a small
+  // non-blocking note instead, and the table renders with whatever's in `results` right now,
+  // filling in/updating as each source reports.
+  const pendingSources = sources.filter((s) => results[s.dataSourceId]?.isLoading);
+  const erroredSources = sources.filter((s) => results[s.dataSourceId]?.error);
 
   const filterValue = useListenChannels(panel.interactions?.listensTo ?? []);
   const viewExtent = useMemo(() => getViewExtentFromFilter(filterValue), [filterValue]);
@@ -176,17 +181,6 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
     ];
   }, [rows]);
 
-  if (hasError) {
-    return (
-      <PanelContainer title={panel.title}>
-        {sources.map((s) => (
-          <SourceRowsFetcher key={s.dataSourceId} source={s} dataSources={dataSources} onResult={handleResult} />
-        ))}
-        One or more data sources failed to load
-      </PanelContainer>
-    );
-  }
-
   return (
     <PanelContainer
       title={panel.title}
@@ -194,22 +188,35 @@ function MultiSourceTable({ panel, dataSources, sources }: MultiSourceTableProps
       bodyOverflow="hidden"
       disablePadding
       headerAction={
-        viewExtent && (
-          <FormControlLabel
-            sx={{ m: 0, bgcolor: 'background.paper' }}
-            control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
-            label="Map view"
-          />
+        (viewExtent || pendingSources.length > 0 || erroredSources.length > 0) && (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', bgcolor: 'background.paper' }}>
+            {pendingSources.length > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                Loading {pendingSources.length} more…
+              </Typography>
+            )}
+            {erroredSources.length > 0 && (
+              <Typography variant="caption" color="error">
+                {erroredSources.length} source{erroredSources.length > 1 ? 's' : ''} failed
+              </Typography>
+            )}
+            {viewExtent && (
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={<Switch size="small" checked={filterToMapView} onChange={(e) => setFilterToMapView(e.target.checked)} />}
+                label="Map view"
+              />
+            )}
+          </Stack>
         )
       }
     >
-      {/* Rendered unconditionally (not gated behind isLoading) - these are what actually DRIVE
-          isLoading to false in the first place, via onResult; an early return before they ever
-          mount would leave every source's isLoading flag stuck at its initial `true` forever. */}
+      {/* Rendered unconditionally - these are what actually feed `results`, via onResult; gating
+          them behind a loading/error check would prevent them from ever reporting in. */}
       {sources.map((s) => (
         <SourceRowsFetcher key={s.dataSourceId} source={s} dataSources={dataSources} onResult={handleResult} />
       ))}
-      {isLoading ? (
+      {rows.length === 0 && pendingSources.length > 0 ? (
         'Loading…'
       ) : (
         <MaterialReactTable
