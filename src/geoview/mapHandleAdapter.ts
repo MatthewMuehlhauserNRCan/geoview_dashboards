@@ -1,5 +1,5 @@
 import type { DashboardLegendItem, DashboardMapHandle, DashboardMapLayerInfo, DashboardMapLegendLayer, LayerGeometryType, MapExtent } from '../map/types';
-import { setRowExtent } from '../map/rowExtent';
+import { getRowExtent, setRowExtent } from '../map/rowExtent';
 import type {
   DomainLayerStatusChangedDelegate,
   MapMoveEndDelegate,
@@ -93,8 +93,15 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
       // `queryLayerEsriDynamic(layerPath, objectIds)` returns features WITH geometry via a single
       // combined ArcGIS REST query, not one request per feature.
       const oidField = oidFieldByLayer.get(layerPath);
-      if (oidField && result.results[0]?.geoviewLayerType === 'esriDynamic') {
+      const isEsriDynamic = result.results[0]?.geoviewLayerType === 'esriDynamic';
+      if (isEsriDynamic && !oidField) {
+        console.warn(`Layer "${layerPath}" is esriDynamic but no OID field was found - its rows can't get a recovered geometry/extent.`);
+      }
+      if (oidField && isEsriDynamic) {
         const objectIds = rows.map((row) => Number(row[oidField])).filter((id) => Number.isFinite(id));
+        if (objectIds.length === 0) {
+          console.warn(`Layer "${layerPath}" is esriDynamic with an OID field ("${oidField}"), but no row had a usable numeric OID value - geometry recovery couldn't even be attempted.`);
+        }
         if (objectIds.length > 0) {
           try {
             const withGeometry = await mapViewer.controllers.layerController.queryLayerEsriDynamic(layerPath, objectIds);
@@ -104,15 +111,30 @@ export function createGeoviewMapHandle(mapViewer: MapViewer): DashboardMapHandle
               const extent = entry.geometry?.getExtent() as MapExtent | undefined;
               if (Number.isFinite(oidValue) && extent) extentByOid.set(oidValue, extent);
             }
+            if (extentByOid.size === 0) {
+              console.warn(`Geometry recovery for esriDynamic layer "${layerPath}" returned no usable geometries for ${objectIds.length} feature(s) - its rows won't participate in map-view-extent filtering.`);
+            }
             for (const row of rows) {
               const extent = extentByOid.get(Number(row[oidField]));
               if (extent) setRowExtent(row, extent);
             }
-          } catch {
-            // Best-effort recovery only - rows simply stay without a resolvable extent (same as
-            // any other layer type/query that doesn't carry geometry) if this fails.
+          } catch (error) {
+            console.warn(`Geometry recovery for esriDynamic layer "${layerPath}" failed - its rows won't participate in map-view-extent filtering.`, error);
           }
         }
+      }
+
+      // General diagnostic (any layer type, not just esriDynamic) - logs once per call whether
+      // this layer's rows have a usable extent at all, AND compares one example row's extent
+      // against the current view extent so a genuine PROJECTION mismatch (wildly different
+      // coordinate magnitudes - e.g. lon/lat degrees vs a projected CRS in the millions) is
+      // immediately visible in the console, as opposed to rows that simply, correctly, aren't in
+      // the current view.
+      const rowsWithExtent = rows.filter((row) => getRowExtent(row) !== undefined);
+      if (rowsWithExtent.length < rows.length) {
+        console.warn(
+          `Layer "${layerPath}" (${result.results[0]?.geoviewLayerType ?? 'unknown type'}): only ${rowsWithExtent.length}/${rows.length} row(s) have a resolvable geometry/extent - the rest won't participate in map-view-extent filtering.`,
+        );
       }
 
       return rows;

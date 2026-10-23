@@ -17,6 +17,17 @@ const ROW_EXTENT_KEY = '__rowExtent';
 
 export function setRowExtent(row: Record<string, unknown>, extent: MapExtent | undefined): void {
   if (!extent) return;
+  // NaN coordinates (e.g. from a feature whose geometry parsing genuinely failed) would silently
+  // pass the empty-extent check below - `NaN > x` and `NaN <= x` are BOTH always false, so a NaN
+  // extent isn't caught by comparison-based checks at all and needs its own explicit rejection.
+  if (!extent.every(Number.isFinite)) return;
+  // OL's own sentinel for an EMPTY extent (min > max on either axis - e.g. `[Infinity, Infinity,
+  // -Infinity, -Infinity]`) is what `geometry.getExtent()` returns for a degenerate/coordinate-
+  // less geometry - confirmed happening in practice, not just theoretical. This is NOT a real,
+  // resolvable location and must be treated the same as "no extent at all" (undefined), or a
+  // `extentsIntersect()` check against it would always fail in a way indistinguishable from "not
+  // currently in view" instead of "this row genuinely has no geometry".
+  if (extent[0] > extent[2] || extent[1] > extent[3]) return;
   Object.defineProperty(row, ROW_EXTENT_KEY, { value: extent, enumerable: false, configurable: true });
 }
 
