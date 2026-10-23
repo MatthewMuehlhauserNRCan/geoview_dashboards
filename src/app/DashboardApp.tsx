@@ -102,7 +102,7 @@ export function DashboardApp({ config }: DashboardAppProps) {
           <a href="#dashboard-content" className="skip-link no-print">
             Skip to dashboard content
           </a>
-          {config.titleElement && <TitleElement config={config.titleElement} />}
+          {config.titleElement && <TitleElement config={config.titleElement} dataSources={config.dataSources} />}
           {/* Border wraps everything except the title element, which sits outside/above it. */}
           <Box
             sx={{

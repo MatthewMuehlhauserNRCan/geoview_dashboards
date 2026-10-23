@@ -29,6 +29,7 @@ import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
 import PaletteIcon from '@mui/icons-material/Palette';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import type { PanelConfig } from '../config/types';
 import { dashboardConfigSchema } from '../config/schema';
 import { AddPanelDialog } from './AddPanelDialog';
@@ -37,6 +38,7 @@ import { GridEditor } from './GridEditor';
 import { LinkingPanel } from './LinkingPanel';
 import { MapPreview, useMapPanels } from './MapPreview';
 import { PanelInspector } from './PanelInspector';
+import { PreviewDialog } from './PreviewDialog';
 import { ThemeForm } from './ThemeForm';
 import { TitleElementForm } from './TitleElementForm';
 import { TitlePanelForm } from './TitlePanelForm';
@@ -72,6 +74,7 @@ export function EditorApp() {
   const [dataSourcesDialogOpen, setDataSourcesDialogOpen] = useState(false);
   const [linkingDialogOpen, setLinkingDialogOpen] = useState(false);
   const [linkingHelpOpen, setLinkingHelpOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handlePick = (type: PanelConfig['type']) => {
@@ -134,6 +137,9 @@ export function EditorApp() {
           </Button>
           <Button size="small" startIcon={<ViewHeadlineIcon />} onClick={() => setHeaderDialogOpen(true)}>
             Header
+          </Button>
+          <Button size="small" startIcon={<VisibilityIcon />} onClick={() => setPreviewOpen(true)}>
+            Preview
           </Button>
           <Button
             size="small"
@@ -228,7 +234,13 @@ export function EditorApp() {
                 Map preview
               </Typography>
               <Box sx={{ height: 360, border: '1px solid', borderColor: 'divider' }}>
-                <MapPreview />
+                {previewOpen ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                    Paused while the full dashboard preview is open (avoids mounting the same map twice).
+                  </Typography>
+                ) : (
+                  <MapPreview />
+                )}
               </Box>
             </Box>
           </Stack>
@@ -318,7 +330,12 @@ export function EditorApp() {
       <Dialog open={headerDialogOpen} onClose={() => setHeaderDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Dashboard header</DialogTitle>
         <DialogContent>
-          <TitleElementForm value={config.titleElement} channels={config.linking?.channels ?? []} onChange={setTitleElement} />
+          <TitleElementForm
+            value={config.titleElement}
+            channels={config.linking?.channels ?? []}
+            dataSources={config.dataSources}
+            onChange={setTitleElement}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setHeaderDialogOpen(false)}>Close</Button>
@@ -340,6 +357,8 @@ export function EditorApp() {
           <Button onClick={() => setErrors(undefined)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <PreviewDialog open={previewOpen} config={config} onClose={() => setPreviewOpen(false)} />
     </Box>
   );
 }

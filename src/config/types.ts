@@ -300,26 +300,44 @@ export interface TitleImageConfig {
   href?: string;
 }
 
+// One reusable "slot" a header-menu option can set a value for - channel/field (and optionally
+// which data source(s) share that field/value) are defined ONCE here and shared by every option,
+// instead of repeating that shape per option (an option then just supplies a short values list
+// per target - see TitleMenuOption.values).
+export interface TitleMenuFilterTarget {
+  id: string;
+  // Optional author-facing row label shown in the editor's matrix (e.g. "Agency (layer A)");
+  // purely cosmetic, falls back to showing the field/channel when omitted.
+  label?: string;
+  channel: string;
+  field: string;
+  // Optional - notes which data source(s) share this exact field name AND value representation;
+  // purely documentation/editor convenience (drives the editor's data-source picker), never read
+  // by the running dashboard - only `channel`/`field` are actually applied (see TitleElement.tsx).
+  // If a data source needs a different field name or value for what's conceptually the same
+  // filter, give it its OWN target instead of adding it here (targets can still share one
+  // `channel` if desired) - same pattern as the legend panel's channel split in linking.md.
+  dataSources?: string[];
+}
+
 export interface TitleMenuOption {
   id: string;
   label: string;
-  // Applied when this option is clicked: sets each listed channel's field to these values, same
-  // shape a filter panel's own selection would push. Options in the same menu behave like a radio
-  // group - selecting one clears every OTHER option's filter fields first (never combined),
-  // clicking the active option again clears its own.
-  filters?: TitleMenuOptionFilter[];
+  // Applied when this option is clicked: for every optionsMenu.targets entry, sets that target's
+  // channel/field to values[target.id] (or clears it, if omitted) - same shape a filter panel's
+  // own selection would push. Options in the same menu behave like a radio group - selecting one
+  // clears every OTHER option's values first (never combined), clicking the active option again
+  // clears its own. Keyed by target id, not channel/field, so renaming a target's field doesn't
+  // require touching every option.
+  values?: Record<string, string[]>;
 }
 
-export interface TitleMenuOptionFilter {
-  channel: string;
-  field: string;
-  values: string[];
-}
-
-// The author configures the option list; clicking one applies its `filters` (see TitleMenuOption).
+// The author configures `targets` once and `options` list; clicking an option applies its
+// `values` against every target (see TitleMenuOption).
 export interface TitleOptionsMenuConfig {
   icon?: TitleImageConfig;
   label?: string;
+  targets?: TitleMenuFilterTarget[];
   options: TitleMenuOption[];
 }
 

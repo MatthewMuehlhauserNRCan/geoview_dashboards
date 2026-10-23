@@ -216,21 +216,24 @@ const titleImageSchema = z.object({
   href: z.string().optional(),
 });
 
-const titleMenuOptionFilterSchema = z.object({
+const titleMenuFilterTargetSchema = z.object({
+  id: z.string(),
+  label: z.string().optional(),
   channel: z.string(),
   field: z.string(),
-  values: z.array(z.string()),
+  dataSources: z.array(z.string()).optional(),
 });
 
 const titleMenuOptionSchema = z.object({
   id: z.string(),
   label: z.string(),
-  filters: z.array(titleMenuOptionFilterSchema).optional(),
+  values: z.record(z.string(), z.array(z.string())).optional(),
 });
 
 const titleOptionsMenuSchema = z.object({
   icon: titleImageSchema.optional(),
   label: z.string().optional(),
+  targets: z.array(titleMenuFilterTargetSchema).optional(),
   options: z.array(titleMenuOptionSchema),
 });
 

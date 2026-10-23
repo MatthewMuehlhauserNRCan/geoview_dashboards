@@ -18,16 +18,20 @@ import MenuIcon from '@mui/icons-material/Menu';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PrintIcon from '@mui/icons-material/Print';
 import CheckIcon from '@mui/icons-material/Check';
-import type { TitleElementConfig, TitleMenuOption } from '../config/types';
+import type { DataSourceConfig, TitleElementConfig, TitleMenuFilterTarget, TitleMenuOption } from '../config/types';
 import { setChannelField } from '../linking/useChannel';
+import type { FieldFilterValue } from '../linking/rowFilter';
+import { buildFilterExpression } from '../map/filterExpression';
+import { getMapHandle } from '../map/registry';
 
 interface TitleElementProps {
   config: TitleElementConfig;
+  dataSources: DataSourceConfig[];
 }
 
 // The fixed, non-resizable header above everything else (including the resizable title panel) -
 // logo on the left, title/subtitle in the middle, options + hamburger menus on the right.
-export function TitleElement({ config }: TitleElementProps) {
+export function TitleElement({ config, dataSources }: TitleElementProps) {
   const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
   const [hamburgerAnchor, setHamburgerAnchor] = useState<HTMLElement | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
@@ -36,23 +40,17 @@ export function TitleElement({ config }: TitleElementProps) {
   // on the same values - this is the source of truth for which one is considered selected.
   const [activeOptionId, setActiveOptionId] = useState<string | undefined>();
 
-  // Selecting an option clears every OTHER option's configured filter fields first (so a stale
+  // Selecting an option clears every OTHER option's configured values first (so a stale
   // selection from a previously-active option can't linger), then applies the clicked option's
   // own values - clicking the already-active option again just clears everything (deselects).
   const handleOptionClick = (option: TitleMenuOption) => {
-    const allOptions = config.optionsMenu?.options ?? [];
     const isActive = activeOptionId === option.id;
     const nextActive = isActive ? undefined : option;
-    const seen = new Set<string>();
-    for (const opt of allOptions) {
-      for (const filter of opt.filters ?? []) {
-        const key = `${filter.channel}\u0000${filter.field}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const matching = nextActive?.filters?.find((f) => f.channel === filter.channel && f.field === filter.field);
-        setChannelField(filter.channel, filter.field, matching?.values ?? []);
-      }
+    const targets = config.optionsMenu?.targets ?? [];
+    for (const target of targets) {
+      setChannelField(target.channel, target.field, nextActive?.values?.[target.id] ?? []);
     }
+    applyNativeMapFilters(targets, nextActive, dataSources);
     setActiveOptionId(nextActive?.id);
     setOptionsAnchor(null);
   };
@@ -153,4 +151,38 @@ export function TitleElement({ config }: TitleElementProps) {
       )}
     </AppBar>
   );
+}
+
+// The generic linking-channel mechanism (setChannelField, above) is what drives chart/table/stat
+// panels - but it can't safely drive a map's OWN rendered features too: a channel's merged
+// FieldFilterValue carries every field ANY listening panel contributed, and a map can own MANY
+// layers that don't all share the same fields (see linking.md's AND-everything caveat) - blindly
+// pushing the full merged value to every layer the map owns would reference a nonexistent column
+// on any layer that doesn't have that field. Instead, each target's own `dataSources` (the exact
+// map-layer sources it was authored for) scopes its field/value clause to ONLY those layers,
+// combined per-layer with any OTHER target that also targets it (e.g. two different header
+// filters both scoping the same layer) - mirroring how a `filter` panel pushes its own selection
+// straight to the map (FilterPanel.tsx), just driven by the option's values instead of dropdowns.
+// Don't also list a layer here that's already a `filter` panel's own `dataSource` - both would
+// independently call setLayerFilter on it and race each other.
+function applyNativeMapFilters(
+  targets: TitleMenuFilterTarget[],
+  activeOption: TitleMenuOption | undefined,
+  dataSources: DataSourceConfig[],
+) {
+  const byLayer = new Map<string, { mapPanelId: string; layerId: string; filter: FieldFilterValue }>();
+  for (const target of targets) {
+    const values = activeOption?.values?.[target.id] ?? [];
+    for (const dataSourceId of target.dataSources ?? []) {
+      const source = dataSources.find((d) => d.id === dataSourceId);
+      if (!source || source.type !== 'map-layer') continue;
+      const key = `${source.mapPanelId}\u0000${source.layerId}`;
+      const entry = byLayer.get(key) ?? { mapPanelId: source.mapPanelId, layerId: source.layerId, filter: {} };
+      entry.filter[target.field] = values;
+      byLayer.set(key, entry);
+    }
+  }
+  for (const { mapPanelId, layerId, filter } of byLayer.values()) {
+    getMapHandle(mapPanelId)?.setLayerFilter(layerId, buildFilterExpression(filter));
+  }
 }

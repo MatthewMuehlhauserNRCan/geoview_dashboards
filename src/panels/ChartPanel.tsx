@@ -336,10 +336,12 @@ function MultiSourceChart({ panel, dataSources, sources }: MultiSourceChartProps
   const values = useMemo(
     () =>
       sources.map((s) => {
-        const sourceRows = results[s.dataSourceId]?.rows ?? [];
-        return viewExtent && filterToMapView ? sourceRows.filter((row) => rowPassesViewExtent(row, viewExtent)).length : sourceRows.length;
+        let sourceRows = results[s.dataSourceId]?.rows ?? [];
+        if (filterValue) sourceRows = sourceRows.filter((row) => rowMatchesFieldFilter(row, filterValue));
+        if (viewExtent && filterToMapView) sourceRows = sourceRows.filter((row) => rowPassesViewExtent(row, viewExtent));
+        return sourceRows.length;
       }),
-    [sources, results, viewExtent, filterToMapView],
+    [sources, results, filterValue, viewExtent, filterToMapView],
   );
 
   // Clicking toggles that source's id in/out of the selection (multiple can be selected at once).
