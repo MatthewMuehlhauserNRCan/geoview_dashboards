@@ -295,6 +295,26 @@ interface TextPanelConfig {
   when `contentUrl` points at content the dashboard author doesn't fully control) - only genuine
   markdown syntax is converted to formatting.
 
+## `image`
+
+A single image (e.g. a logo, photo, diagram, or legend graphic that isn't tied to a map layer).
+
+```ts
+interface ImagePanelConfig {
+  type: 'image';
+  src: string; // image URL (or data URI); required
+  alt?: string; // accessibility text; defaults to empty (decorative)
+  fit?: 'contain' | 'cover' | 'fill'; // like CSS object-fit; defaults to 'contain'
+  link?: string; // optional URL opened in a new tab when the image is clicked
+}
+```
+
+- `fit: 'contain'` (default) shows the whole image, letterboxed if its aspect ratio doesn't match
+  the panel; `'cover'` fills the panel and crops any overflow; `'fill'` stretches the image to
+  the panel's exact size, ignoring aspect ratio.
+- `link` makes the whole image clickable, opening that URL in a new tab - useful for a clickable
+  logo or a thumbnail linking out to a full-size version/source page.
+
 ## `tab`
 
 Not itself a leaf panel - splits one grid cell into multiple panels the viewer switches between
@@ -308,8 +328,8 @@ interface TabPanelConfig {
 ```
 
 Each `tabs[].panel` is any leaf panel type (`map`/`chart`/`stat`/`table`/`legend`/`filter`/
-`text`) **without** its own `layout` - its position is the whole `tab` panel's single grid cell.
-Nesting a `tab` inside another `tab`'s tabs isn't supported.
+`text`/`image`) **without** its own `layout` - its position is the whole `tab` panel's single
+grid cell. Nesting a `tab` inside another `tab`'s tabs isn't supported.
 
 ## `stack`
 

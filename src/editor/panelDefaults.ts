@@ -19,6 +19,8 @@ export function createDefaultLeafPanel(type: LeafPanelConfig['type'], id = gener
       return { id, type, fields: [] };
     case 'text':
       return { id, type, content: '', format: 'plain' };
+    case 'image':
+      return { id, type, src: '' };
   }
 }
 
@@ -28,7 +30,7 @@ export function createDefaultPanel(type: PanelConfig['type'], id = generateId(`p
   return createDefaultLeafPanel(type, id);
 }
 
-export const LEAF_PANEL_TYPES: LeafPanelConfig['type'][] = ['map', 'chart', 'stat', 'table', 'legend', 'filter', 'text'];
+export const LEAF_PANEL_TYPES: LeafPanelConfig['type'][] = ['map', 'chart', 'stat', 'table', 'legend', 'filter', 'text', 'image'];
 export const GRID_PANEL_TYPES: PanelConfig['type'][] = [...LEAF_PANEL_TYPES, 'tab', 'stack'];
 
 export const PANEL_TYPE_LABELS: Record<PanelConfig['type'], string> = {
@@ -39,6 +41,7 @@ export const PANEL_TYPE_LABELS: Record<PanelConfig['type'], string> = {
   legend: 'Legend',
   filter: 'Filter',
   text: 'Text',
+  image: 'Image',
   tab: 'Tabs (multiple views in one cell)',
   stack: 'Stack (split one cell)',
 };

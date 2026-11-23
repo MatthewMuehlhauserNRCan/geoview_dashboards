@@ -114,6 +114,15 @@ const textPanelFields = z
     path: ['content'],
   });
 
+const imagePanelFields = z.object({
+  ...baseFields,
+  type: z.literal('image'),
+  src: z.string(),
+  alt: z.string().optional(),
+  fit: z.enum(['contain', 'cover', 'fill']).optional(),
+  link: z.string().optional(),
+});
+
 const leafPanelSchema = z.discriminatedUnion('type', [
   mapPanelFields,
   chartPanelFields,
@@ -122,6 +131,7 @@ const leafPanelSchema = z.discriminatedUnion('type', [
   legendPanelFields,
   filterPanelFields,
   textPanelFields,
+  imagePanelFields,
 ]);
 
 const tabItemSchema = z.object({
@@ -152,6 +162,7 @@ const panelSchema = z.discriminatedUnion('type', [
   legendPanelFields,
   filterPanelFields,
   textPanelFields,
+  imagePanelFields,
   tabPanelFields,
   stackPanelFields,
 ]);

@@ -659,6 +659,49 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           </FormControl>
         </Stack>
       )}
+
+      {leafPanel.type === 'image' && (
+        <Stack spacing={1.5}>
+          <TextField
+            label="Image URL"
+            placeholder="https://example.com/photo.jpg"
+            value={leafPanel.src}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'image' ? { ...p, src: e.target.value } : p))}
+          />
+          <TextField
+            label="Alt text"
+            value={leafPanel.alt ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'image' ? { ...p, alt: e.target.value || undefined } : p))}
+          />
+          <FormControl size="small" fullWidth>
+            <InputLabel>Fit</InputLabel>
+            <Select
+              label="Fit"
+              value={leafPanel.fit ?? 'contain'}
+              onChange={(e) =>
+                onChange((p) => (p.type === 'image' ? { ...p, fit: e.target.value as 'contain' | 'cover' | 'fill' } : p))
+              }
+            >
+              <MenuItem value="contain">Contain (show whole image)</MenuItem>
+              <MenuItem value="cover">Cover (fill panel, may crop)</MenuItem>
+              <MenuItem value="fill">Fill (stretch to panel)</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            label="Link URL"
+            placeholder="https://example.com"
+            helperText="Optional - opens in a new tab when the image is clicked."
+            value={leafPanel.link ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'image' ? { ...p, link: e.target.value || undefined } : p))}
+          />
+        </Stack>
+      )}
     </Stack>
   );
 }

@@ -145,6 +145,18 @@ export interface TextPanelConfig extends BasePanelConfig {
   format?: 'plain' | 'markdown';
 }
 
+export interface ImagePanelConfig extends BasePanelConfig {
+  type: 'image';
+  // image URL (or data URI); required
+  src: string;
+  // accessibility/alt text; defaults to empty (decorative) when omitted
+  alt?: string;
+  // how the image fits its panel, like CSS `object-fit`. Defaults to 'contain'.
+  fit?: 'contain' | 'cover' | 'fill';
+  // optional URL opened in a new tab when the image is clicked
+  link?: string;
+}
+
 // Panel types that can be placed directly on the grid or nested inside a tab panel.
 export type LeafPanelConfig =
   | MapPanelConfig
@@ -153,7 +165,8 @@ export type LeafPanelConfig =
   | TablePanelConfig
   | LegendPanelConfig
   | FilterPanelConfig
-  | TextPanelConfig;
+  | TextPanelConfig
+  | ImagePanelConfig;
 
 export interface TabItemConfig {
   id: string;
