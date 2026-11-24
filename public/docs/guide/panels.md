@@ -319,23 +319,61 @@ interface TextPanelConfig {
 
 ## `image`
 
-A single image (e.g. a logo, photo, diagram, or legend graphic that isn't tied to a map layer).
+One image (e.g. a logo, photo, diagram, or legend graphic that isn't tied to a map layer), or
+several images shown as a carousel. Clicking an image opens it full screen (a lightbox).
 
 ```ts
 interface ImagePanelConfig {
   type: 'image';
-  src: string; // image URL (or data URI); required
+  // either a single image via the shorthand fields...
+  src?: string; // image URL (or data URI)
   alt?: string; // accessibility text; defaults to empty (decorative)
-  fit?: 'contain' | 'cover' | 'fill'; // like CSS object-fit; defaults to 'contain'
   link?: string; // optional URL opened in a new tab when the image is clicked
+  // ...or a list of images (takes priority over src/alt/link when both are set)
+  images?: Array<{
+    src: string;
+    alt?: string;
+    caption?: string; // shown over the bottom of the image and in the lightbox
+    link?: string;
+  }>;
+  fit?: 'contain' | 'cover' | 'fill'; // like CSS object-fit; defaults to 'contain'
+  lightbox?: boolean; // click to view full screen; defaults to true
+  autoplay?: boolean; // carousel only: auto-advance, with a pause button; defaults to false
+  autoplaySeconds?: number; // carousel only: seconds per image while autoplaying; defaults to 5
 }
 ```
 
+- One of `src` or `images` is required.
 - `fit: 'contain'` (default) shows the whole image, letterboxed if its aspect ratio doesn't match
   the panel; `'cover'` fills the panel and crops any overflow; `'fill'` stretches the image to
-  the panel's exact size, ignoring aspect ratio.
-- `link` makes the whole image clickable, opening that URL in a new tab - useful for a clickable
-  logo or a thumbnail linking out to a full-size version/source page.
+  the panel's exact size, ignoring aspect ratio. The lightbox always shows the whole image.
+- **Lightbox**: clicking an image opens it full screen. Close it with the close button or
+  <kbd>Esc</kbd>. Set `lightbox: false` to turn this off.
+- `link` makes an image open that URL in a new tab when clicked, instead of opening the lightbox.
+  The lightbox is still available from the full-screen button in the panel's corner, and the
+  lightbox shows an "open link" button.
+- **Carousel**: with more than one entry in `images`, the panel shows previous/next buttons and
+  a dot for each image. The left/right arrow keys also work, in the panel and in the lightbox.
+  Moving between images in the lightbox also changes the image shown in the panel.
+- `autoplay: true` advances to the next image every `autoplaySeconds` and shows a play/pause
+  button. Previous/next buttons still work. Autoplay also pauses while the pointer is over the
+  carousel, while keyboard focus is inside it, and while the lightbox is open. It starts paused
+  for users whose system is set to reduce motion.
+
+```json
+{
+  "id": "site-photos",
+  "type": "image",
+  "title": "Monitoring sites",
+  "fit": "cover",
+  "autoplay": true,
+  "autoplaySeconds": 6,
+  "images": [
+    { "src": "https://example.com/site-a.jpg", "alt": "Site A", "caption": "Site A - spring survey" },
+    { "src": "https://example.com/site-b.jpg", "alt": "Site B", "caption": "Site B - river outlet" }
+  ]
+}
+```
 
 ## `tab`
 

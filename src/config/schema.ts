@@ -115,14 +115,30 @@ const textPanelFields = z
     path: ['content'],
   });
 
-const imagePanelFields = z.object({
-  ...baseFields,
-  type: z.literal('image'),
+const imageItemSchema = z.object({
   src: z.string(),
   alt: z.string().optional(),
-  fit: z.enum(['contain', 'cover', 'fill']).optional(),
+  caption: z.string().optional(),
   link: z.string().optional(),
 });
+
+const imagePanelFields = z
+  .object({
+    ...baseFields,
+    type: z.literal('image'),
+    src: z.string().optional(),
+    alt: z.string().optional(),
+    link: z.string().optional(),
+    images: z.array(imageItemSchema).optional(),
+    fit: z.enum(['contain', 'cover', 'fill']).optional(),
+    lightbox: z.boolean().optional(),
+    autoplay: z.boolean().optional(),
+    autoplaySeconds: z.number().positive().optional(),
+  })
+  .refine((panel) => panel.src !== undefined || panel.images !== undefined, {
+    message: 'image panel requires `src` or `images`',
+    path: ['src'],
+  });
 
 const leafPanelSchema = z.discriminatedUnion('type', [
   mapPanelFields,

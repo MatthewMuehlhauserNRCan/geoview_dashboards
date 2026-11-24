@@ -152,16 +152,34 @@ export interface TextPanelConfig extends BasePanelConfig {
   format?: 'plain' | 'markdown';
 }
 
-export interface ImagePanelConfig extends BasePanelConfig {
-  type: 'image';
-  // image URL (or data URI); required
+export interface ImageItemConfig {
+  // image URL (or data URI)
   src: string;
   // accessibility/alt text; defaults to empty (decorative) when omitted
   alt?: string;
+  // optional caption shown over the bottom of the image (and in the lightbox)
+  caption?: string;
+  // optional URL opened in a new tab when the image is clicked (instead of opening the lightbox)
+  link?: string;
+}
+
+export interface ImagePanelConfig extends BasePanelConfig {
+  type: 'image';
+  // single-image shorthand (equivalent to `images: [{ src, alt, link }]`); ignored when `images`
+  // is set. One of `src` / `images` is required.
+  src?: string;
+  alt?: string;
+  link?: string;
+  // one or more images - more than one turns the panel into a carousel with prev/next controls
+  images?: ImageItemConfig[];
   // how the image fits its panel, like CSS `object-fit`. Defaults to 'contain'.
   fit?: 'contain' | 'cover' | 'fill';
-  // optional URL opened in a new tab when the image is clicked
-  link?: string;
+  // clicking an image opens it full screen. Defaults to true.
+  lightbox?: boolean;
+  // carousel only: auto-advance through the images (with a pause button). Defaults to false.
+  autoplay?: boolean;
+  // carousel only: seconds each image is shown while autoplaying. Defaults to 5.
+  autoplaySeconds?: number;
 }
 
 // Panel types that can be placed directly on the grid or nested inside a tab panel.

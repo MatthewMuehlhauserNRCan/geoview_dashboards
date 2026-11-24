@@ -31,7 +31,15 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import MapIcon from '@mui/icons-material/Map';
 import DatasetIcon from '@mui/icons-material/Dataset';
-import type { DataSourceConfig, GridPanel, LeafPanelConfig, LinkingChannel } from '../config/types';
+import type {
+  DataSourceConfig,
+  GridPanel,
+  ImageItemConfig,
+  ImagePanelConfig,
+  LeafPanelConfig,
+  LinkingChannel,
+} from '../config/types';
+import { toImageItems } from '../panels/imageItems';
 import { LEAF_PANEL_TYPES, PANEL_TYPE_LABELS, createDefaultLeafPanel } from './panelDefaults';
 import { useEditorStore } from './store';
 import { AddPanelDialog } from './AddPanelDialog';
@@ -680,21 +688,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
 
       {leafPanel.type === 'image' && (
         <Stack spacing={1.5}>
-          <TextField
-            label="Image URL"
-            placeholder="https://example.com/photo.jpg"
-            value={leafPanel.src}
-            fullWidth
-            size="small"
-            onChange={(e) => onChange((p) => (p.type === 'image' ? { ...p, src: e.target.value } : p))}
-          />
-          <TextField
-            label="Alt text"
-            value={leafPanel.alt ?? ''}
-            fullWidth
-            size="small"
-            onChange={(e) => onChange((p) => (p.type === 'image' ? { ...p, alt: e.target.value || undefined } : p))}
-          />
+          <ImageListFields panel={leafPanel} onChange={onChange} />
           <FormControl size="small" fullWidth>
             <InputLabel>Fit</InputLabel>
             <Select
@@ -709,17 +703,145 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               <MenuItem value="fill">Fill (stretch to panel)</MenuItem>
             </Select>
           </FormControl>
-          <TextField
-            label="Link URL"
-            placeholder="https://example.com"
-            helperText="Optional - opens in a new tab when the image is clicked."
-            value={leafPanel.link ?? ''}
-            fullWidth
-            size="small"
-            onChange={(e) => onChange((p) => (p.type === 'image' ? { ...p, link: e.target.value || undefined } : p))}
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={leafPanel.lightbox ?? true}
+                onChange={(e) =>
+                  onChange((p) => (p.type === 'image' ? { ...p, lightbox: e.target.checked ? undefined : false } : p))
+                }
+              />
+            }
+            label="Open full screen when clicked"
           />
+          {toImageItems(leafPanel).length > 1 && (
+            <>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={leafPanel.autoplay ?? false}
+                    onChange={(e) =>
+                      onChange((p) => (p.type === 'image' ? { ...p, autoplay: e.target.checked || undefined } : p))
+                    }
+                  />
+                }
+                label="Auto-advance (with pause button)"
+              />
+              {leafPanel.autoplay && (
+                <TextField
+                  label="Seconds per image"
+                  type="number"
+                  value={leafPanel.autoplaySeconds ?? ''}
+                  placeholder="5"
+                  fullWidth
+                  size="small"
+                  slotProps={{ htmlInput: { min: 1, step: 1 } }}
+                  onChange={(e) => {
+                    const seconds = Number(e.target.value);
+                    onChange((p) =>
+                      p.type === 'image' ? { ...p, autoplaySeconds: e.target.value && seconds > 0 ? seconds : undefined } : p,
+                    );
+                  }}
+                />
+              )}
+            </>
+          )}
         </Stack>
       )}
+    </Stack>
+  );
+}
+
+// Edits the image list. Any edit writes the normalized `images` array and drops the
+// single-image `src`/`alt`/`link` shorthand, so there's only ever one source of truth.
+function ImageListFields({
+  panel,
+  onChange,
+}: {
+  panel: ImagePanelConfig;
+  onChange: (updater: (panel: LeafPanelConfig) => LeafPanelConfig) => void;
+}) {
+  const items = toImageItems(panel);
+  const setItems = (update: (items: ImageItemConfig[]) => ImageItemConfig[]) =>
+    onChange((p) => {
+      if (p.type !== 'image') return p;
+      const { src: _src, alt: _alt, link: _link, ...rest } = p;
+      return { ...rest, images: update(toImageItems(p)) };
+    });
+  const updateItem = (index: number, patch: Partial<ImageItemConfig>) =>
+    setItems((list) => list.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  const move = (index: number, delta: number) =>
+    setItems((list) => {
+      const next = [...list];
+      const [item] = next.splice(index, 1);
+      next.splice(index + delta, 0, item);
+      return next;
+    });
+
+  return (
+    <Stack spacing={1}>
+      <Typography variant="subtitle2">Images</Typography>
+      {items.length > 1 && (
+        <Typography variant="caption" color="text.secondary">
+          More than one image shows as a carousel with previous/next buttons.
+        </Typography>
+      )}
+      {items.map((item, i) => (
+        <Box key={i} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1 }}>
+          <Stack spacing={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                Image {i + 1}
+              </Typography>
+              <IconButton size="small" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
+                <ArrowUpwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" aria-label="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)}>
+                <ArrowDownwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton size="small" aria-label="Remove image" onClick={() => setItems((list) => list.filter((_, j) => j !== i))}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            <TextField
+              label="Image URL"
+              placeholder="https://example.com/photo.jpg"
+              value={item.src}
+              fullWidth
+              size="small"
+              onChange={(e) => updateItem(i, { src: e.target.value })}
+            />
+            <TextField
+              label="Alt text"
+              value={item.alt ?? ''}
+              fullWidth
+              size="small"
+              onChange={(e) => updateItem(i, { alt: e.target.value || undefined })}
+            />
+            <TextField
+              label="Caption"
+              value={item.caption ?? ''}
+              fullWidth
+              size="small"
+              onChange={(e) => updateItem(i, { caption: e.target.value || undefined })}
+            />
+            <TextField
+              label="Link URL"
+              placeholder="https://example.com"
+              helperText="Optional - clicking the image opens this in a new tab instead of full screen."
+              value={item.link ?? ''}
+              fullWidth
+              size="small"
+              onChange={(e) => updateItem(i, { link: e.target.value || undefined })}
+            />
+          </Stack>
+        </Box>
+      ))}
+      <Button size="small" onClick={() => setItems((list) => [...list, { src: '' }])} sx={{ alignSelf: 'flex-start' }}>
+        Add image
+      </Button>
     </Stack>
   );
 }

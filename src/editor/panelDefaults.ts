@@ -20,7 +20,7 @@ export function createDefaultLeafPanel(type: LeafPanelConfig['type'], id = gener
     case 'text':
       return { id, type, content: '', format: 'plain' };
     case 'image':
-      return { id, type, src: '' };
+      return { id, type, images: [{ src: '' }] };
   }
 }
 

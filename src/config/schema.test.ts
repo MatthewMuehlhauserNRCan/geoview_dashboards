@@ -45,4 +45,31 @@ describe('parseDashboardConfig', () => {
     };
     expect(() => parseDashboardConfig(invalid)).toThrow();
   });
+
+  const withImagePanel = (panel: Record<string, unknown>) => ({
+    id: 'd',
+    title: 'Dashboard',
+    dataSources: [],
+    pages: [
+      {
+        id: 'p',
+        label: 'Page',
+        grid: { columns: 1, rows: 1 },
+        panels: [{ id: 'img', type: 'image', layout: { col: 1, row: 1 }, ...panel }],
+      },
+    ],
+  });
+
+  it('accepts an image panel using either the src shorthand or an images list', () => {
+    expect(() => parseDashboardConfig(withImagePanel({ src: 'a.png' }))).not.toThrow();
+    expect(() =>
+      parseDashboardConfig(
+        withImagePanel({ images: [{ src: 'a.png', caption: 'A' }, { src: 'b.png' }], autoplay: true, autoplaySeconds: 3 }),
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects an image panel with neither src nor images', () => {
+    expect(() => parseDashboardConfig(withImagePanel({}))).toThrow();
+  });
 });
