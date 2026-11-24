@@ -625,12 +625,24 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
       {leafPanel.type === 'text' && (
         <Stack spacing={1.5}>
           <TextField
+            label="Template"
+            placeholder={'## {{Header1_EN}}\n\n{{Text1_EN}}'}
+            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from the first row of Data source (above, filter it down to one feature via that source's own URL). Takes priority over Content/Content URL below."
+            value={leafPanel.template ?? ''}
+            multiline
+            minRows={3}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, template: e.target.value || undefined } : p))}
+          />
+          <TextField
             label="Content URL"
             placeholder="https://example.com/notes.md"
             helperText="Optional - fetches a remote markdown document instead of the Content field below, and is always rendered as markdown."
             value={leafPanel.contentUrl ?? ''}
             fullWidth
             size="small"
+            disabled={Boolean(leafPanel.template)}
             onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, contentUrl: e.target.value || undefined } : p))}
           />
           <TextField
@@ -640,11 +652,17 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             minRows={4}
             fullWidth
             size="small"
-            disabled={Boolean(leafPanel.contentUrl)}
-            helperText={leafPanel.contentUrl ? 'Ignored while Content URL is set.' : undefined}
+            disabled={Boolean(leafPanel.contentUrl) || Boolean(leafPanel.template)}
+            helperText={
+              leafPanel.template
+                ? 'Ignored while Template is set.'
+                : leafPanel.contentUrl
+                  ? 'Ignored while Content URL is set.'
+                  : undefined
+            }
             onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, content: e.target.value } : p))}
           />
-          <FormControl size="small" fullWidth disabled={Boolean(leafPanel.contentUrl)}>
+          <FormControl size="small" fullWidth disabled={Boolean(leafPanel.contentUrl) || Boolean(leafPanel.template)}>
             <InputLabel>Format</InputLabel>
             <Select
               label="Format"

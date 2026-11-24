@@ -20,6 +20,15 @@ interface RestJsonDataSourceConfig {
 - `refresh.mode: 'static'` (or omitted): fetched once.
 - `refresh.mode: 'interval'`: re-fetched every `seconds` (default `60`) while any panel using it
   is mounted.
+- The response can be either a plain JSON array of rows, a single JSON object (treated as one
+  row), **or** an ArcGIS REST `query` endpoint's FeatureSet shape
+  (`{ "features": [{ "attributes": {...} }] }`, what `.../FeatureServer/0/query?f=json` returns) -
+  that shape is automatically unwrapped into one flat row per feature's `attributes`. To restrict
+  a `rest-json` source to a single feature (e.g. one row of a shared lookup table feeding a
+  [text panel's `template`](panels.md)), bake the ArcGIS `where=` clause straight into this data
+  source's own `url` - a data source is just a URL, there's no separate per-source query/filter
+  config, so give each panel that needs a different feature its own data source entry pointed at
+  the same service with a different `where=`.
 
 ## `static-file`
 

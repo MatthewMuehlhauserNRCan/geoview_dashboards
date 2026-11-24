@@ -273,14 +273,17 @@ interface FilterPanelConfig {
 
 ## `text`
 
-Plain text, formatted markdown, or a remote markdown document (e.g. notes, instructions, a
-changelog fetched from a CMS/repo).
+Plain text, formatted markdown, a remote markdown document (e.g. notes, instructions, a
+changelog fetched from a CMS/repo), or a markdown template filled in from a data source row (e.g.
+combining several header/body fields from one feature of a shared service into one formatted
+panel).
 
 ```ts
 interface TextPanelConfig {
   type: 'text';
-  content?: string; // inline text; required unless `contentUrl` is set
+  content?: string; // inline text; required unless `contentUrl` or `template` is set
   contentUrl?: string; // fetches a remote document instead of `content` - always rendered as markdown
+  template?: string; // markdown with {{FieldName}} placeholders, filled from `dataSource`'s first row
   format?: 'plain' | 'markdown'; // how `content` is rendered; defaults to 'plain'
 }
 ```
@@ -291,9 +294,28 @@ interface TextPanelConfig {
 - `contentUrl`: fetches that URL's text and renders it as markdown, regardless of `format` - use
   this to point at a `.md` file hosted anywhere (a repo's raw file URL, a CMS, etc.) instead of
   pasting its contents inline. `content` is ignored while `contentUrl` is set.
+- `template`: fetches `dataSource` (the panel's own top-level data source field, shared with every
+  other panel type) and substitutes `{{FieldName}}` placeholders in the template string with
+  values from its **first** returned row - always rendered as markdown, and takes priority over
+  `content`/`contentUrl` if more than one is set. A missing field renders as an empty string. This
+  is the way to combine several fields from one record into one panel, e.g.:
+  ```ts
+  {
+    type: 'text',
+    dataSource: 'national-weather-overview', // a rest-json source whose own URL already
+                                              // filters to ONE feature, e.g. an ArcGIS query
+                                              // endpoint with `where=display_PageTitle_EN=...`
+    template: '## {{Header1_EN}}\n\n{{Text1_EN}}\n\n## {{Header2_EN}}\n\n{{Text2_EN}}',
+  }
+  ```
+  If several panels need different single features from the *same* underlying service, give each
+  panel its own `rest-json` data source with the `where=`/filter baked into that source's own
+  `url` - a data source is just a URL, there's no separate per-panel query/filter config. A
+  `rest-json` source pointed at an ArcGIS `query` endpoint is automatically unwrapped from its
+  `{ features: [{ attributes: {...} }] }` response shape into plain rows.
 - Raw HTML embedded in markdown is NOT rendered (intentionally, to avoid a script-injection risk
-  when `contentUrl` points at content the dashboard author doesn't fully control) - only genuine
-  markdown syntax is converted to formatting.
+  when `contentUrl`/`template` points at content the dashboard author doesn't fully control) - only
+  genuine markdown syntax is converted to formatting.
 
 ## `image`
 

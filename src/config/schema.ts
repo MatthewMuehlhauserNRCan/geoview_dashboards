@@ -107,10 +107,11 @@ const textPanelFields = z
     type: z.literal('text'),
     content: z.string().optional(),
     contentUrl: z.string().optional(),
+    template: z.string().optional(),
     format: z.enum(['plain', 'markdown']).optional(),
   })
-  .refine((panel) => Boolean(panel.content) || Boolean(panel.contentUrl), {
-    message: 'text panel requires either `content` or `contentUrl`',
+  .refine((panel) => Boolean(panel.content) || Boolean(panel.contentUrl) || Boolean(panel.template), {
+    message: 'text panel requires `content`, `contentUrl`, or `template`',
     path: ['content'],
   });
 

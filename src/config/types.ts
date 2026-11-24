@@ -136,12 +136,19 @@ export interface FilterPanelConfig extends BasePanelConfig {
 
 export interface TextPanelConfig extends BasePanelConfig {
   type: 'text';
-  // inline text; required unless `contentUrl` is set. Rendered per `format` (plain text by default).
+  // inline text; required unless `contentUrl` or `template` is set. Rendered per `format` (plain text by default).
   content?: string;
   // fetches a remote document's text instead of using `content` - always rendered as markdown,
   // regardless of `format` (that's the whole point of pointing at a `.md` document).
   contentUrl?: string;
-  // how `content` is rendered; ignored when `contentUrl` is set (always markdown there). Defaults to 'plain'.
+  // markdown template with `{{FieldName}}` placeholders, filled in from the FIRST row of
+  // `dataSource` (inherited from BasePanelConfig) - e.g. combining several header/body fields
+  // from one feature (filtered server-side via that data source's own URL/`where` clause) into
+  // one formatted panel. A missing field renders as an empty string. Always rendered as markdown,
+  // like `contentUrl`. Requires `dataSource`; takes priority over `content`/`contentUrl` if more
+  // than one is set.
+  template?: string;
+  // how `content` is rendered; ignored when `contentUrl`/`template` is set (always markdown there). Defaults to 'plain'.
   format?: 'plain' | 'markdown';
 }
 
