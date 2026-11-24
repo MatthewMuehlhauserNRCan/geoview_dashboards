@@ -283,7 +283,9 @@ interface TextPanelConfig {
   type: 'text';
   content?: string; // inline text; required unless `contentUrl` or `template` is set
   contentUrl?: string; // fetches a remote document instead of `content` - always rendered as markdown
-  template?: string; // markdown with {{FieldName}} placeholders, filled from `dataSource`'s first row
+  template?: string; // markdown with {{FieldName}} placeholders, filled from `dataSource`'s row(s)
+  repeatTemplate?: boolean; // repeat `template` per row (default true) or use only the first row
+  emptyContent?: string; // markdown shown instead of `template` when `dataSource` has zero rows
   format?: 'plain' | 'markdown'; // how `content` is rendered; defaults to 'plain'
 }
 ```
@@ -296,9 +298,16 @@ interface TextPanelConfig {
   pasting its contents inline. `content` is ignored while `contentUrl` is set.
 - `template`: fetches `dataSource` (the panel's own top-level data source field, shared with every
   other panel type) and substitutes `{{FieldName}}` placeholders in the template string with
-  values from its **first** returned row - always rendered as markdown, and takes priority over
-  `content`/`contentUrl` if more than one is set. A missing field renders as an empty string. This
-  is the way to combine several fields from one record into one panel, e.g.:
+  values from its row(s) - always rendered as markdown, and takes priority over
+  `content`/`contentUrl` if more than one is set. A missing field renders as an empty string. If
+  `dataSource` returns more than one row, `repeatTemplate` (default `true`) renders the template
+  **once per row**, each copy joined by a markdown rule (`---`); set it to `false` to render the
+  template only once, against the first row, ignoring the rest. If `dataSource` returns **zero**
+  rows (e.g. a `where=` clause matched nothing), `emptyContent` is rendered instead, if set -
+  without it, `template` still renders once against an empty row (every `{{field}}` comes out
+  blank, which is usually not what you want, so setting `emptyContent` is recommended whenever a
+  template's data source could plausibly return no rows). This is the way to combine several
+  fields from one record into one panel, e.g.:
   ```ts
   {
     type: 'text',
@@ -306,6 +315,7 @@ interface TextPanelConfig {
                                               // filters to ONE feature, e.g. an ArcGIS query
                                               // endpoint with `where=display_PageTitle_EN=...`
     template: '## {{Header1_EN}}\n\n{{Text1_EN}}\n\n## {{Header2_EN}}\n\n{{Text2_EN}}',
+    emptyContent: 'No overview is currently available.',
   }
   ```
   If several panels need different single features from the *same* underlying service, give each
@@ -335,6 +345,7 @@ interface ImagePanelConfig {
     alt?: string;
     caption?: string; // shown over the bottom of the image and in the lightbox
     link?: string;
+    title?: string; // replaces the panel's own title while this image is showing
   }>;
   fit?: 'contain' | 'cover' | 'fill'; // like CSS object-fit; defaults to 'contain'
   lightbox?: boolean; // click to view full screen; defaults to true
@@ -355,6 +366,9 @@ interface ImagePanelConfig {
 - **Carousel**: with more than one entry in `images`, the panel shows previous/next buttons and
   a dot for each image. The left/right arrow keys also work, in the panel and in the lightbox.
   Moving between images in the lightbox also changes the image shown in the panel.
+- Each image's `title` replaces the panel's own `title` in the header (and the lightbox) while
+  that image is showing - e.g. for a carousel of several sites where the title names the one
+  currently visible. Images without their own `title` fall back to the panel's `title`.
 - `autoplay: true` advances to the next image every `autoplaySeconds` and shows a play/pause
   button. Previous/next buttons still work. Autoplay also pauses while the pointer is over the
   carousel, while keyboard focus is inside it, and while the lightbox is open. It starts paused
@@ -369,8 +383,8 @@ interface ImagePanelConfig {
   "autoplay": true,
   "autoplaySeconds": 6,
   "images": [
-    { "src": "https://example.com/site-a.jpg", "alt": "Site A", "caption": "Site A - spring survey" },
-    { "src": "https://example.com/site-b.jpg", "alt": "Site B", "caption": "Site B - river outlet" }
+    { "src": "https://example.com/site-a.jpg", "alt": "Site A", "caption": "Spring survey", "title": "Site A" },
+    { "src": "https://example.com/site-b.jpg", "alt": "Site B", "caption": "River outlet", "title": "Site B" }
   ]
 }
 ```

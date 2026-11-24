@@ -9,3 +9,16 @@ export function fillTextTemplate(template: string, row: DataSourceRecord | undef
     return value === undefined || value === null ? '' : String(value);
   });
 }
+
+// Renders the template once per row (joined by a markdown rule) when `repeatForAllRows` is true
+// (the default), or just once against the first row only when it's false.
+export function renderTextTemplate(
+  template: string,
+  rows: DataSourceRecord[] | undefined,
+  repeatForAllRows: boolean,
+): string {
+  if (!repeatForAllRows || !rows || rows.length <= 1) {
+    return fillTextTemplate(template, rows?.[0]);
+  }
+  return rows.map((row) => fillTextTemplate(template, row)).join('\n\n---\n\n');
+}

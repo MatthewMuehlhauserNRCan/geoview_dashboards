@@ -635,7 +635,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           <TextField
             label="Template"
             placeholder={'## {{Header1_EN}}\n\n{{Text1_EN}}'}
-            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from the first row of Data source (above, filter it down to one feature via that source's own URL). Takes priority over Content/Content URL below."
+            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from Data source's row(s) (above). Takes priority over Content/Content URL below."
             value={leafPanel.template ?? ''}
             multiline
             minRows={3}
@@ -643,6 +643,34 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             size="small"
             onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, template: e.target.value || undefined } : p))}
           />
+          {leafPanel.template && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={leafPanel.repeatTemplate ?? true}
+                  onChange={(e) =>
+                    onChange((p) => (p.type === 'text' ? { ...p, repeatTemplate: e.target.checked } : p))
+                  }
+                />
+              }
+              label="Repeat template for every row (uncheck to use only the first row)"
+            />
+          )}
+          {leafPanel.template && (
+            <TextField
+              label="No results text"
+              placeholder="No data available."
+              helperText="Optional - markdown shown instead of Template when Data source returns zero rows. Leave blank to render Template against an empty row instead."
+              value={leafPanel.emptyContent ?? ''}
+              multiline
+              minRows={2}
+              fullWidth
+              size="small"
+              onChange={(e) =>
+                onChange((p) => (p.type === 'text' ? { ...p, emptyContent: e.target.value || undefined } : p))
+              }
+            />
+          )}
           <TextField
             label="Content URL"
             placeholder="https://example.com/notes.md"
@@ -826,6 +854,14 @@ function ImageListFields({
               fullWidth
               size="small"
               onChange={(e) => updateItem(i, { caption: e.target.value || undefined })}
+            />
+            <TextField
+              label="Panel title for this image"
+              helperText="Optional - replaces the panel's title while this image is showing."
+              value={item.title ?? ''}
+              fullWidth
+              size="small"
+              onChange={(e) => updateItem(i, { title: e.target.value || undefined })}
             />
             <TextField
               label="Link URL"

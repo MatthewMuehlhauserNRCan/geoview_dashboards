@@ -141,13 +141,19 @@ export interface TextPanelConfig extends BasePanelConfig {
   // fetches a remote document's text instead of using `content` - always rendered as markdown,
   // regardless of `format` (that's the whole point of pointing at a `.md` document).
   contentUrl?: string;
-  // markdown template with `{{FieldName}}` placeholders, filled in from the FIRST row of
-  // `dataSource` (inherited from BasePanelConfig) - e.g. combining several header/body fields
-  // from one feature (filtered server-side via that data source's own URL/`where` clause) into
-  // one formatted panel. A missing field renders as an empty string. Always rendered as markdown,
+  // markdown template with `{{FieldName}}` placeholders, filled in from `dataSource` (inherited
+  // from BasePanelConfig) - e.g. combining several header/body fields from one feature into one
+  // formatted panel. A missing field renders as an empty string. Always rendered as markdown,
   // like `contentUrl`. Requires `dataSource`; takes priority over `content`/`contentUrl` if more
   // than one is set.
   template?: string;
+  // when `dataSource` returns more than one row: true (default) repeats `template` once per row
+  // (joined by a markdown rule); false renders it only against the first row, ignoring the rest.
+  repeatTemplate?: boolean;
+  // shown instead of `template` (rendered as markdown) when `dataSource` returns zero rows (e.g.
+  // its `where` clause matched nothing) - ignored unless `template` is set. Omit to fall back to
+  // rendering `template` itself against an empty row (every `{{field}}` renders blank).
+  emptyContent?: string;
   // how `content` is rendered; ignored when `contentUrl`/`template` is set (always markdown there). Defaults to 'plain'.
   format?: 'plain' | 'markdown';
 }
@@ -161,6 +167,9 @@ export interface ImageItemConfig {
   caption?: string;
   // optional URL opened in a new tab when the image is clicked (instead of opening the lightbox)
   link?: string;
+  // optional per-image title - while this image is showing, it replaces the panel's own
+  // `title` in the header (and the lightbox). Falls back to the panel's `title` when omitted.
+  title?: string;
 }
 
 export interface ImagePanelConfig extends BasePanelConfig {

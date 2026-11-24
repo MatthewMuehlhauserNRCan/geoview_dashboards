@@ -108,6 +108,8 @@ const textPanelFields = z
     content: z.string().optional(),
     contentUrl: z.string().optional(),
     template: z.string().optional(),
+    repeatTemplate: z.boolean().optional(),
+    emptyContent: z.string().optional(),
     format: z.enum(['plain', 'markdown']).optional(),
   })
   .refine((panel) => Boolean(panel.content) || Boolean(panel.contentUrl) || Boolean(panel.template), {
@@ -120,6 +122,7 @@ const imageItemSchema = z.object({
   alt: z.string().optional(),
   caption: z.string().optional(),
   link: z.string().optional(),
+  title: z.string().optional(),
 });
 
 const imagePanelFields = z

@@ -85,9 +85,11 @@ export function ImagePanel({ panel }: ImagePanelProps) {
   }
 
   const current = images[index];
+  // a per-image `title` overrides the panel's own title while that image is showing
+  const displayTitle = current.title ?? panel.title;
 
   return (
-    <PanelContainer title={panel.title} disablePadding expandable={false}>
+    <PanelContainer title={displayTitle} disablePadding expandable={false}>
       <Box
         role={isCarousel ? 'region' : undefined}
         aria-roledescription={isCarousel ? 'carousel' : undefined}
@@ -276,7 +278,7 @@ export function ImagePanel({ panel }: ImagePanelProps) {
           open={lightboxOpen}
           onClose={() => setLightboxOpen(false)}
           fullScreen
-          aria-label={current.alt || panel.title || 'Image'}
+          aria-label={current.alt || displayTitle || 'Image'}
           onKeyDown={handleArrowKeys}
           slotProps={{ paper: { sx: { bgcolor: 'rgba(0, 0, 0, 0.92)', color: '#fff', backgroundImage: 'none' } } }}
         >
@@ -299,9 +301,18 @@ export function ImagePanel({ panel }: ImagePanelProps) {
           </Box>
 
           <Box sx={{ position: 'absolute', top: 8, left: 12, right: 8, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ flex: 1 }}>
-              {isCarousel ? `${index + 1} / ${count}` : ''}
-            </Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              {displayTitle && (
+                <Typography variant="subtitle1" noWrap>
+                  {displayTitle}
+                </Typography>
+              )}
+              {isCarousel && (
+                <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                  {index + 1} / {count}
+                </Typography>
+              )}
+            </Box>
             {current.link && (
               <IconButton
                 component="a"

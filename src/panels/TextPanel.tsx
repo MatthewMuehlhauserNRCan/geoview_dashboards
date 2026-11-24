@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import type { DataSourceConfig, TextPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
-import { fillTextTemplate } from './textTemplate';
+import { renderTextTemplate } from './textTemplate';
 
 interface TextPanelProps {
   panel: TextPanelConfig;
@@ -30,9 +30,9 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
     enabled: Boolean(panel.contentUrl) && !panel.template,
   });
 
-  // Only fetches when `template` is actually set - `panel.dataSource` is expected to already be
-  // filtered down to one feature server-side (e.g. a `where=` clause baked into its own URL), so
-  // only the first returned row is used.
+  // Only fetches when `template` is actually set - `panel.dataSource` is expected to be filtered
+  // down to the feature(s) this panel cares about server-side (e.g. a `where=` clause baked into
+  // its own URL).
   const { data: templateRows, isLoading: templateLoading } = useDataSource(
     panel.template ? panel.dataSource : undefined,
     dataSources,
@@ -42,10 +42,14 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
     if (templateLoading) {
       return <PanelContainer title={panel.title}>Loading…</PanelContainer>;
     }
+    const text =
+      (templateRows?.length ?? 0) === 0 && panel.emptyContent !== undefined
+        ? panel.emptyContent
+        : renderTextTemplate(panel.template, templateRows, panel.repeatTemplate ?? true);
     return (
       <PanelContainer title={panel.title}>
         <div className="markdown-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{fillTextTemplate(panel.template, templateRows?.[0])}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         </div>
       </PanelContainer>
     );
