@@ -1,16 +1,18 @@
-import { Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
+import { Button, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import type { TitlePanelConfig } from '../config/types';
 
 interface TitlePanelFormProps {
   value: TitlePanelConfig | undefined;
   onChange: (next: TitlePanelConfig | undefined) => void;
+  // Omitted when there's only one page (nothing else to copy to).
+  onApplyToAllPages?: () => void;
 }
 
 const DEFAULT_TITLE_PANEL: TitlePanelConfig = {};
 
 // A thin, resizable strip below the title element - unlike `titleElement`, this is authored
 // per-page (see TitleElementForm for the dashboard-wide header).
-export function TitlePanelForm({ value, onChange }: TitlePanelFormProps) {
+export function TitlePanelForm({ value, onChange, onApplyToAllPages }: TitlePanelFormProps) {
   const enabled = value !== undefined;
   const config = value ?? DEFAULT_TITLE_PANEL;
 
@@ -51,6 +53,11 @@ export function TitlePanelForm({ value, onChange }: TitlePanelFormProps) {
             placeholder="e.g. #1976d2"
             onChange={(e) => onChange({ ...config, backgroundColor: e.target.value || undefined })}
           />
+          {onApplyToAllPages && (
+            <Button size="small" onClick={onApplyToAllPages}>
+              Apply to all pages
+            </Button>
+          )}
         </Stack>
       )}
     </Stack>

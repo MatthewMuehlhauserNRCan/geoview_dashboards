@@ -8,6 +8,7 @@ import type {
   GridPanel,
   LeafPanelConfig,
   LinkingChannel,
+  PageHeadingConfig,
   PanelLayout,
   TitleElementConfig,
   TitlePanelConfig,
@@ -57,6 +58,10 @@ interface EditorState {
   updateMeta: (fields: Partial<Pick<DashboardConfig, 'id' | 'title'>>) => void;
   setTitleElement: (titleElement: TitleElementConfig | undefined) => void;
   setTitlePanel: (pageId: string, titlePanel: TitlePanelConfig | undefined) => void;
+  // Copies `pageId`'s own titlePanel onto every other page - for content that's meant to be
+  // identical across pages (so the author only has to edit it in one place).
+  applyTitlePanelToAllPages: (pageId: string) => void;
+  setPageHeading: (pageId: string, pageHeading: PageHeadingConfig | undefined) => void;
   setTheme: (theme: DashboardThemeConfig | undefined) => void;
 
   addPage: () => void;
@@ -108,6 +113,18 @@ export const useEditorStore = create<EditorState>()(
       setTitlePanel: (pageId, titlePanel) =>
         set((state) => ({
           config: { ...state.config, pages: state.config.pages.map((p) => (p.id === pageId ? { ...p, titlePanel } : p)) },
+        })),
+      applyTitlePanelToAllPages: (pageId) =>
+        set((state) => {
+          const source = state.config.pages.find((p) => p.id === pageId);
+          if (!source) return state;
+          return {
+            config: { ...state.config, pages: state.config.pages.map((p) => ({ ...p, titlePanel: source.titlePanel })) },
+          };
+        }),
+      setPageHeading: (pageId, pageHeading) =>
+        set((state) => ({
+          config: { ...state.config, pages: state.config.pages.map((p) => (p.id === pageId ? { ...p, pageHeading } : p)) },
         })),
       setTheme: (theme) => set((state) => ({ config: { ...state.config, theme } })),
 

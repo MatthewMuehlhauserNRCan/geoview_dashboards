@@ -303,6 +303,11 @@ export interface DashboardPageConfig {
   id: string;
   label: string;
   titlePanel?: TitlePanelConfig;
+  // A simple, single-line heading below `titlePanel` (e.g. naming which page/section is active) -
+  // unlike `titlePanel`'s 3-column left/image/right layout, this is just one line of text. Use
+  // this for content that genuinely changes per page; if `titlePanel`'s content is actually the
+  // SAME on every page, just author it identically on each page rather than using this instead.
+  pageHeading?: PageHeadingConfig;
   grid: GridConfig;
   panels: GridPanel[];
 }
@@ -423,5 +428,14 @@ export interface TitlePanelConfig {
   left?: string;
   image?: TitleImageConfig;
   right?: string;
+  backgroundColor?: string;
+}
+
+// A plain, non-resizable single-line heading - deliberately much simpler than TitlePanelConfig
+// (no left/image/right split), meant for a short label naming the current page/section.
+export interface PageHeadingConfig {
+  text: string;
+  align?: 'left' | 'center' | 'right';
+  textColor?: string;
   backgroundColor?: string;
 }

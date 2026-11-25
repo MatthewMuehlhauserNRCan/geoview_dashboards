@@ -42,6 +42,7 @@ import { PreviewDialog } from './PreviewDialog';
 import { ThemeForm } from './ThemeForm';
 import { TitleElementForm } from './TitleElementForm';
 import { TitlePanelForm } from './TitlePanelForm';
+import { PageHeadingForm } from './PageHeadingForm';
 import { createDefaultPanel } from './panelDefaults';
 import { useEditorStore } from './store';
 
@@ -58,6 +59,8 @@ export function EditorApp() {
   const updateMeta = useEditorStore((s) => s.updateMeta);
   const setTitleElement = useEditorStore((s) => s.setTitleElement);
   const setTitlePanel = useEditorStore((s) => s.setTitlePanel);
+  const applyTitlePanelToAllPages = useEditorStore((s) => s.applyTitlePanelToAllPages);
+  const setPageHeading = useEditorStore((s) => s.setPageHeading);
   const setTheme = useEditorStore((s) => s.setTheme);
   const loadConfig = useEditorStore((s) => s.loadConfig);
   const resetConfig = useEditorStore((s) => s.resetConfig);
@@ -227,7 +230,17 @@ export function EditorApp() {
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                 Title panel ({page.label})
               </Typography>
-              <TitlePanelForm value={page.titlePanel} onChange={(next) => setTitlePanel(page.id, next)} />
+              <TitlePanelForm
+                value={page.titlePanel}
+                onChange={(next) => setTitlePanel(page.id, next)}
+                onApplyToAllPages={config.pages.length > 1 ? () => applyTitlePanelToAllPages(page.id) : undefined}
+              />
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Page heading ({page.label})
+              </Typography>
+              <PageHeadingForm value={page.pageHeading} onChange={(next) => setPageHeading(page.id, next)} />
             </Box>
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>

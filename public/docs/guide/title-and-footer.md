@@ -73,7 +73,27 @@ interface TitlePanelConfig {
 
 Set per-page (`DashboardPageConfig.titlePanel`) - different pages can show different title-panel
 text, or omit it entirely. Starts sized to its content and only becomes a fixed height once a
-viewer drags its bottom edge (so it doesn't force every page to reserve space for it).
+viewer drags its bottom edge (so it doesn't force every page to reserve space for it). If its
+content is actually meant to be the **same on every page**, just author it identically on each
+page (the editor's "Apply to all pages" button, next to this section, copies one page's title
+panel onto every other page so you only have to edit it in one place).
+
+## Page heading (per-page, plain)
+
+A simple, non-resizable single line of text below the title panel - unlike the title panel's
+left/image/right layout, this is just one line, meant for content that genuinely changes per page
+(e.g. naming the current page/section).
+
+```ts
+interface PageHeadingConfig {
+  text: string;
+  align?: 'left' | 'center' | 'right'; // defaults to 'center'
+  textColor?: string;
+  backgroundColor?: string;
+}
+```
+
+Set per-page (`DashboardPageConfig.pageHeading`).
 
 ## Footer (automatic, not configured)
 

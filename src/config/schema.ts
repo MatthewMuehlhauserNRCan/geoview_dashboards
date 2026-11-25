@@ -301,10 +301,18 @@ const titlePanelSchema = z.object({
   backgroundColor: z.string().optional(),
 });
 
+const pageHeadingSchema = z.object({
+  text: z.string(),
+  align: z.enum(['left', 'center', 'right']).optional(),
+  textColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+});
+
 const dashboardPageSchema = z.object({
   id: z.string(),
   label: z.string(),
   titlePanel: titlePanelSchema.optional(),
+  pageHeading: pageHeadingSchema.optional(),
   grid: gridSchema,
   panels: z.array(gridPanelSchema),
 });

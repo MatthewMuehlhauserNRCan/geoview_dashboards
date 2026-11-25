@@ -7,6 +7,7 @@ import type { DashboardConfig } from '../config/types';
 import { DashboardGrid } from '../grid/DashboardGrid';
 import { TitleElement } from '../title/TitleElement';
 import { TitlePanel } from '../title/TitlePanel';
+import { PageHeading } from '../title/PageHeading';
 import { FooterElement } from '../footer/FooterElement';
 import { createDashboardTheme } from '../theme/createDashboardTheme';
 import { ErrorBoundary } from '../common/ErrorBoundary';
@@ -131,6 +132,7 @@ export function DashboardApp({ config }: DashboardAppProps) {
               </IconButton>
             )}
             {activePage.titlePanel && <TitlePanel key={activePage.id} config={activePage.titlePanel} />}
+            {activePage.pageHeading && <PageHeading key={activePage.id} config={activePage.pageHeading} />}
             {/* Only the grid gets the remaining space and may scroll/shrink - nothing around it
                 is ever pushed off-screen or clipped. `id`/`tabIndex` make this the skip link's
                 target; `region`+`aria-label` give it a landmark (not `main`, since the embed
