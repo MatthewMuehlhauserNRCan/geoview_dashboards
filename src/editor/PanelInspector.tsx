@@ -32,6 +32,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import MapIcon from '@mui/icons-material/Map';
 import DatasetIcon from '@mui/icons-material/Dataset';
 import type {
+  ChartPanelConfig,
   DataSourceConfig,
   GridPanel,
   ImageItemConfig,
@@ -77,6 +78,11 @@ interface LeafPanelFieldsProps {
   mapPanelOptions: MapPanelOption[];
   onChange: (updater: (panel: LeafPanelConfig) => LeafPanelConfig) => void;
 }
+
+function parsePositiveInt(value: string): number | undefined {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
 
 // Common fields (id/title/dataSource/linking) shared by every leaf panel type, plus the
 // type-specific fields for whichever `leafPanel.type` is selected. Reused both for a
@@ -104,6 +110,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   };
 
   const selectedDataSource = dataSources.find((ds) => ds.id === leafPanel.dataSource);
+  const setChart = (patch: Partial<ChartPanelConfig>) => onChange((p) => (p.type === 'chart' ? { ...p, ...patch } : p));
   const isMultiSourcePanel = leafPanel.type === 'chart' || leafPanel.type === 'table';
   const isChartMultiSource = leafPanel.type === 'chart' && Boolean(leafPanel.sources?.length);
   const isCardsManual = leafPanel.type === 'cards' && Boolean(leafPanel.cards?.length);
@@ -163,7 +170,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           </Select>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
             {leafPanel.type === 'chart'
-              ? "Pick one for a single chart grouped by Field (below), or several for one value per data source (e.g. one bar per sublayer) - not supported for scatter."
+              ? 'Pick one for a single chart, or several for one bar per data source (or one series per source when Field is set).'
               : 'Pick one for a single table, or several to merge their rows into one table (adds a "Source" column).'}
           </Typography>
         </FormControl>
@@ -305,45 +312,71 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               <MenuItem value="histogram">Histogram</MenuItem>
             </Select>
           </FormControl>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Legend position</InputLabel>
+            <Select
+              label="Legend position"
+              value={leafPanel.legendPosition ?? (leafPanel.chartType === 'pie' ? 'right' : 'top')}
+              onChange={(e) => setChart({ legendPosition: e.target.value as ChartPanelConfig['legendPosition'] })}
+            >
+              <MenuItem value="right">Right (stacked vertically)</MenuItem>
+              <MenuItem value="left">Left (stacked vertically)</MenuItem>
+              <MenuItem value="top">Top</MenuItem>
+              <MenuItem value="bottom">Bottom</MenuItem>
+              <MenuItem value="none">Hidden</MenuItem>
+            </Select>
+          </FormControl>
           {leafPanel.chartType === 'pie' && (
-            <>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Legend position</InputLabel>
-                <Select
-                  label="Legend position"
-                  value={leafPanel.legendPosition ?? 'right'}
-                  onChange={(e) =>
-                    onChange((p) => (p.type === 'chart' ? { ...p, legendPosition: e.target.value as typeof p.legendPosition } : p))
-                  }
-                >
-                  <MenuItem value="right">Right (stacked vertically)</MenuItem>
-                  <MenuItem value="left">Left (stacked vertically)</MenuItem>
-                  <MenuItem value="top">Top</MenuItem>
-                  <MenuItem value="bottom">Bottom</MenuItem>
-                  <MenuItem value="none">Hidden</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControlLabel
-                label="Label each slice directly"
-                control={
-                  <Checkbox
-                    checked={Boolean(leafPanel.showSliceLabels)}
-                    onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, showSliceLabels: e.target.checked } : p))}
-                  />
-                }
-              />
-            </>
+            <FormControlLabel
+              label="Label each slice directly"
+              control={<Checkbox checked={Boolean(leafPanel.showSliceLabels)} onChange={(e) => setChart({ showSliceLabels: e.target.checked })} />}
+            />
           )}
-          <TextField
-            label="Field (categorical field to aggregate by)"
-            value={leafPanel.field ?? ''}
-            size="small"
-            fullWidth
-            disabled={Boolean(leafPanel.sources?.length)}
-            helperText={leafPanel.sources?.length ? 'Ignored while multiple data sources are selected above.' : undefined}
-            onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, field: e.target.value || undefined } : p))}
-          />
-          {Boolean(leafPanel.field) && !leafPanel.sources?.length && (
+          {leafPanel.chartType !== 'scatter' && (
+            <FormControlLabel
+              label="Show values on the chart"
+              control={<Checkbox checked={Boolean(leafPanel.showValueLabels)} onChange={(e) => setChart({ showValueLabels: e.target.checked || undefined })} />}
+            />
+          )}
+          {(leafPanel.chartType === 'bar' || leafPanel.chartType === 'line' || leafPanel.chartType === 'histogram') && (
+            <FormControlLabel
+              label="Stack series"
+              control={<Checkbox checked={Boolean(leafPanel.stacked)} onChange={(e) => setChart({ stacked: e.target.checked || undefined })} />}
+            />
+          )}
+          {(leafPanel.chartType === 'bar' || leafPanel.chartType === 'histogram') && (
+            <FormControlLabel
+              label="Horizontal bars"
+              control={<Checkbox checked={Boolean(leafPanel.horizontal)} onChange={(e) => setChart({ horizontal: e.target.checked || undefined })} />}
+            />
+          )}
+          {leafPanel.chartType !== 'scatter' && (
+            <TextField
+              label={leafPanel.chartType === 'histogram' ? 'Field (numeric field to bin)' : 'Field (categorical field to group by)'}
+              value={leafPanel.field ?? ''}
+              size="small"
+              fullWidth
+              helperText={
+                leafPanel.sources?.length && leafPanel.chartType !== 'pie'
+                  ? 'With several data sources: leave empty for one bar per source, or set to draw one series per source grouped by this field.'
+                  : leafPanel.sources?.length
+                    ? 'Ignored for pie while several data sources are selected (one slice per source).'
+                    : 'Leave empty to plot one bar/point per raw row (X/Y fields below).'
+              }
+              onChange={(e) => setChart({ field: e.target.value || undefined })}
+            />
+          )}
+          {!leafPanel.sources?.length && leafPanel.chartType !== 'pie' && (
+            <TextField
+              label="Series field (optional)"
+              value={leafPanel.seriesField ?? ''}
+              size="small"
+              fullWidth
+              helperText="Splits the chart into one series per distinct value of this field (e.g. grouped/stacked bars)."
+              onChange={(e) => setChart({ seriesField: e.target.value || undefined })}
+            />
+          )}
+          {Boolean(leafPanel.field || (leafPanel.seriesField && leafPanel.chartType !== 'pie')) && !leafPanel.sources?.length && (
             <Box>
               <Button size="small" variant="outlined" startIcon={<DatasetIcon />} onClick={() => setChartColorsDialogOpen(true)}>
                 Customize colors{leafPanel.colors && Object.keys(leafPanel.colors).length ? ` (${Object.keys(leafPanel.colors).length})` : ''}
@@ -353,38 +386,112 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
                 open={chartColorsDialogOpen}
                 onClose={() => setChartColorsDialogOpen(false)}
                 colors={leafPanel.colors ?? {}}
-                onChange={(next) =>
-                  onChange((p) => (p.type === 'chart' ? { ...p, colors: Object.keys(next).length ? next : undefined } : p))
-                }
+                keyedBy={leafPanel.seriesField && leafPanel.chartType !== 'pie' ? 'Series field' : 'Field'}
+                onChange={(next) => setChart({ colors: Object.keys(next).length ? next : undefined })}
               />
             </Box>
           )}
-          <FormControl size="small" fullWidth disabled={Boolean(leafPanel.sources?.length)}>
-            <InputLabel>Aggregation</InputLabel>
-            <Select
-              label="Aggregation"
-              value={leafPanel.aggregation ?? 'count'}
-              onChange={(e) =>
-                onChange((p) =>
-                  p.type === 'chart' ? { ...p, aggregation: e.target.value as typeof p.aggregation } : p,
-                )
-              }
-            >
-              <MenuItem value="count">Count (number of rows per group)</MenuItem>
-              <MenuItem value="sum">Sum</MenuItem>
-              <MenuItem value="avg">Average</MenuItem>
-              <MenuItem value="min">Min</MenuItem>
-              <MenuItem value="max">Max</MenuItem>
-            </Select>
-          </FormControl>
-          {leafPanel.aggregation && leafPanel.aggregation !== 'count' && !leafPanel.sources?.length && (
+          {leafPanel.chartType !== 'scatter' && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Aggregation</InputLabel>
+              <Select
+                label="Aggregation"
+                value={leafPanel.aggregation ?? 'count'}
+                onChange={(e) => setChart({ aggregation: e.target.value as ChartPanelConfig['aggregation'] })}
+              >
+                <MenuItem value="count">Count (number of rows per group)</MenuItem>
+                <MenuItem value="sum">Sum</MenuItem>
+                <MenuItem value="avg">Average</MenuItem>
+                <MenuItem value="min">Min</MenuItem>
+                <MenuItem value="max">Max</MenuItem>
+              </Select>
+            </FormControl>
+          )}
+          {leafPanel.chartType !== 'scatter' && leafPanel.aggregation && leafPanel.aggregation !== 'count' && (
             <TextField
               label="Value field (numeric field to aggregate)"
               value={leafPanel.valueField ?? ''}
               size="small"
               fullWidth
-              onChange={(e) => onChange((p) => (p.type === 'chart' ? { ...p, valueField: e.target.value || undefined } : p))}
+              onChange={(e) => setChart({ valueField: e.target.value || undefined })}
             />
+          )}
+          {Boolean(leafPanel.field) && leafPanel.chartType !== 'histogram' && !(leafPanel.sources?.length && leafPanel.chartType === 'pie') && (
+            <Stack direction="row" spacing={1}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Sort</InputLabel>
+                <Select
+                  label="Sort"
+                  value={leafPanel.sort ?? 'label'}
+                  onChange={(e) => setChart({ sort: e.target.value === 'label' ? undefined : (e.target.value as ChartPanelConfig['sort']) })}
+                >
+                  <MenuItem value="label">By label</MenuItem>
+                  <MenuItem value="value-desc">By value (largest first)</MenuItem>
+                  <MenuItem value="value-asc">By value (smallest first)</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                label="Limit (top N + Other)"
+                type="number"
+                value={leafPanel.limit ?? ''}
+                size="small"
+                fullWidth
+                slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) => setChart({ limit: parsePositiveInt(e.target.value) })}
+              />
+            </Stack>
+          )}
+          {leafPanel.chartType === 'histogram' && (
+            <TextField
+              label="Bins"
+              type="number"
+              value={leafPanel.bins ?? ''}
+              placeholder="10"
+              size="small"
+              fullWidth
+              slotProps={{ htmlInput: { min: 1 } }}
+              onChange={(e) => setChart({ bins: parsePositiveInt(e.target.value) })}
+            />
+          )}
+          {(leafPanel.chartType === 'scatter' || (!leafPanel.field && !leafPanel.sources?.length)) && (
+            <Stack direction="row" spacing={1}>
+              <TextField
+                label={leafPanel.chartType === 'scatter' ? 'X field' : 'Label field (x)'}
+                value={leafPanel.xField ?? ''}
+                placeholder="auto"
+                size="small"
+                fullWidth
+                onChange={(e) => setChart({ xField: e.target.value || undefined })}
+              />
+              <TextField
+                label={leafPanel.chartType === 'scatter' ? 'Y field' : 'Value field (y)'}
+                value={leafPanel.yField ?? ''}
+                placeholder="auto"
+                size="small"
+                fullWidth
+                onChange={(e) => setChart({ yField: e.target.value || undefined })}
+              />
+            </Stack>
+          )}
+          {leafPanel.chartType !== 'pie' && (
+            <Stack direction="row" spacing={1}>
+              <TextField
+                label="X axis title"
+                value={leafPanel.xAxisTitle ?? ''}
+                placeholder="auto"
+                size="small"
+                fullWidth
+                onChange={(e) => setChart({ xAxisTitle: e.target.value || undefined })}
+              />
+              <TextField
+                label="Y axis title"
+                value={leafPanel.yAxisTitle ?? ''}
+                placeholder="auto"
+                size="small"
+                fullWidth
+                onChange={(e) => setChart({ yAxisTitle: e.target.value || undefined })}
+              />
+            </Stack>
           )}
 
           {Boolean(leafPanel.sources?.length) && (

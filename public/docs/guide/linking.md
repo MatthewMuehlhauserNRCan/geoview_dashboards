@@ -41,6 +41,7 @@ interactions?: {
   matches every field currently set across all their `listensTo` channels combined (a panel can
   listen to more than one channel at once; their contributions are merged together).
 - A `map` panel can also **listen** - if a `chart` panel is in [multi-source mode](guide/panels.md)
+  without a `field` (one bar per source)
   and `emits` onto a channel the map `listensTo`, selecting bars/slices there shows only the
   corresponding `map-layer`-backed layers on that map, hiding every OTHER layer backed by a data
   source that's part of that SAME chart's own `sources` list - a layer backed by a data source

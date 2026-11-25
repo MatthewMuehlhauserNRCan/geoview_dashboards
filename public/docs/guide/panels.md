@@ -76,54 +76,119 @@ Renders a bar/line/pie/scatter/histogram chart (Chart.js) from its `dataSource`'
 interface ChartPanelConfig {
   type: 'chart';
   chartType: 'bar' | 'line' | 'pie' | 'scatter' | 'histogram';
-  field?: string; // categorical field to group rows by
+  field?: string; // field to group rows by (a NUMERIC field to bin, for 'histogram')
   aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max'; // defaults to 'count'
   valueField?: string; // numeric field to aggregate; required (and only used) when aggregation isn't 'count'
+  seriesField?: string; // splits each group into one series per distinct value of this field
   sources?: { dataSourceId: string; label?: string; color?: string }[]; // multi-source mode, see below
-  colors?: Record<string, string>; // per-category color overrides, keyed by the field's raw value
+  colors?: Record<string, string>; // color overrides, keyed by raw field (or seriesField) value
   legendPosition?: 'top' | 'right' | 'bottom' | 'left' | 'none'; // defaults to 'right' for pie, 'top' otherwise
   showSliceLabels?: boolean; // 'pie' only - labels each slice directly with its category name
+  showValueLabels?: boolean; // draws each bar/segment/point/slice's value on the chart
+  stacked?: boolean; // bar/line/histogram with several series - stack them
+  horizontal?: boolean; // bar/histogram - horizontal bars
+  sort?: 'label' | 'value-asc' | 'value-desc'; // category order, defaults to 'label'
+  limit?: number; // keep the first N categories (after sort), fold the rest into "Other"
+  bins?: number; // 'histogram' only - number of equal-width bins, defaults to 10
+  xField?: string; // scatter x / ungrouped label column - auto-detected when omitted
+  yField?: string; // scatter y / ungrouped value column - auto-detected when omitted
+  xAxisTitle?: string; // overrides the auto-generated horizontal axis title ('' hides it)
+  yAxisTitle?: string; // overrides the auto-generated vertical axis title ('' hides it)
   filterToMapView?: boolean; // defaults to true - see "Filtering other panels to the current map view" above
 }
 ```
 
-- `field`: for `bar`/`pie`/`histogram`, groups rows by this field's distinct values (e.g. one bar
-  per distinct `"Symbol"` value). Without it, these chart types fall back to one bar per raw row -
-  only sensible for an already-small row set. `histogram` is currently an alias for `bar` (no real
-  binning yet).
-- `aggregation` (only applies when `field` is set): `'count'` (default) counts rows per group;
+- `field`: for `bar`/`line`/`pie`, groups rows by this field's distinct values (e.g. one bar per
+  distinct `"Symbol"` value). Without it, these chart types fall back to one bar/point/slice per
+  raw row, labelled by `xField` and sized by `yField` (auto-detected as the first text and first
+  numeric field when omitted) - only sensible for an already-small row set.
+- `aggregation` (only applies when grouping): `'count'` (default) counts rows per group;
   `'sum'`/`'avg'`/`'min'`/`'max'` aggregate `valueField` within each group instead (e.g. average
   population per region rather than a feature count per region).
-- `scatter` ignores `field`/`aggregation` - it needs exactly 2 numeric fields in the data and
-  plots them directly against each other (auto-detected from the row shape).
-- Each category (bar/slice) gets its own distinct color automatically - `bar`/`pie`/`histogram`
-  only; `line`/`scatter` keep one flat color, since a single connected line/point cloud doesn't
-  read as separate "categories" the same way. `colors` overrides specific categories by their
-  exact raw `field` value (e.g. `{ "Natural": "#4caf50" }`) - any category not listed still gets
-  its own auto-assigned color. Ignored in multi-source mode (use `sources[].color` there instead).
+- `seriesField`: splits every `field` group into one **series** (dataset) per distinct value of a
+  second field - side-by-side bars, one line per value, or stacked bars with `stacked: true`.
+  Each series gets one color (overridable via `colors`, keyed by the series value), and the legend
+  lists the series. Ignored by `pie`.
+- `sort`/`limit`: categories are ordered by label by default (numerically when every label is a
+  number). `'value-desc'`/`'value-asc'` orders them by their value instead - with several series,
+  by the combined value across all of them (e.g. a stacked bar's total height). `limit` keeps only
+  the first N categories after sorting and folds the rest into one grey **"Other"** category
+  (re-aggregated from those rows, so averages stay correct). "Other" can't be clicked.
+- `histogram`: bins a **numeric** `field` into `bins` equal-width ranges (default 10) spanning
+  its min-max, then counts (or `aggregation`s) the rows in each bin. Bins stay in numeric order
+  (`sort`/`limit` don't apply) and keep their edges while other panels filter the chart. Clicking
+  a bin doesn't select anything. If `field` isn't numeric, it falls back to plain grouping like `bar`.
+- `scatter` plots `yField` against `xField` (auto-detected as the first two numeric fields when
+  omitted); `seriesField` splits it into one colored point cloud per value. `field`/`aggregation`
+  don't apply.
+- Colors: without a `seriesField`, each category (bar/slice) gets its own distinct color
+  automatically - a single `line`/`histogram`/`scatter` keeps one flat color instead. `colors`
+  overrides specific values by their exact raw value (e.g. `{ "Natural": "#4caf50" }`) - any value
+  not listed still gets its own auto-assigned color. Ignored in multi-source mode (use
+  `sources[].color` there instead). Prefer hex/`rgb()`/`hsl()` values - CSS named colors like
+  `"red"` render fine but don't fade when another category is selected.
+- `showValueLabels` draws each value directly on its bar (centered in each stacked segment),
+  above each line point, or inside each pie slice. Bar labels that don't fit inside their segment
+  are skipped automatically, as are zero values.
 - `legendPosition`/`showSliceLabels`: a pie chart's auto-generated one-entry-per-slice legend can
   get crowded above the chart with many categories - `legendPosition` moves it to a side (stacks
   vertically) or hides it (`'none'`), and `showSliceLabels` labels each slice directly as an
   alternative (most useful combined with `legendPosition: 'none'`). Both can be combined however
-  you like (e.g. slice labels AND a side legend). Only `'pie'` honors `showSliceLabels`; other
-  chart types ignore it (but still honor `legendPosition`, using Chart.js's own `'top'` default
-  unless overridden).
-- Clicking a bar/slice toggles that category in/out of the selection (multiple can be selected at
-  once) in whichever channel this panel `emits` to (see [Linking](guide/linking.md)) - clicking an
-  already-selected one again removes just that one. A "Clear selection" button appears whenever
-  anything is selected.
+  you like. Only `'pie'` honors `showSliceLabels`; every chart type honors `legendPosition`.
+- `xAxisTitle`/`yAxisTitle` refer to the **visual** axes (x is always horizontal, even for
+  `horizontal` bars). They default to the grouping field and the aggregation (e.g. "Count",
+  "Average of population"); set `""` to hide one.
+- Clicking a bar/slice/point toggles that category in/out of the selection (multiple can be
+  selected at once) in whichever channel this panel `emits` to (see [Linking](guide/linking.md)) -
+  clicking an already-selected one again removes just that one. With a `seriesField`, a click
+  selects the **category** (`field` value), not the series. A "Clear selection" button appears
+  whenever anything is selected.
 - `filterToMapView` (default `true`): when this panel `listensTo` a channel a map panel is
   publishing its view extent onto, restricts the chart's own rows to just the current map view -
   see "Filtering other panels to the current map view" under `map` above. Ignored entirely when no
-  such channel is listened to. Applies in multi-source mode too (each source's own row count is
+  such channel is listened to. Applies in multi-source mode too (each source's rows are
   restricted before being charted).
+
+### Example: stacked bars by category and status
+
+One bar per agency, stacked by fire status, with fixed status colors, counts drawn on each
+segment and the legend underneath:
+
+```json
+{
+  "id": "fires-by-agency",
+  "type": "chart",
+  "title": "Active Fires Status by Agency",
+  "dataSource": "active-fires",
+  "chartType": "bar",
+  "field": "agency",
+  "seriesField": "status",
+  "stacked": true,
+  "showValueLabels": true,
+  "legendPosition": "bottom",
+  "colors": {
+    "Under Control": "#5b5bff",
+    "Being Held": "#e5e526",
+    "Out of Control": "#ff1a1a"
+  }
+}
+```
+
+Add `"sort": "value-desc"` to put the agency with the most fires first, or `"horizontal": true`
+for horizontal bars.
 
 ### Multi-source mode
 
-Instead of grouping rows from ONE `dataSource` by a field, `sources` renders one bar/slice per
-**data source**, each showing that source's row count - useful for e.g. one bar per sublayer of a
-group layer (several `map-layer` data sources pointed at the same map panel). When `sources` is
-set, `dataSource`/`field`/`aggregation`/`valueField` are ignored; not supported for `scatter`.
+Instead of one `dataSource`, `sources` pulls each entry's **own** data source - useful for e.g.
+the sublayers of a group layer (several `map-layer` data sources pointed at the same map panel).
+`dataSource` is ignored when `sources` is set. What it draws depends on `field`:
+
+- **No `field`** (or `pie`): one bar/slice per **data source**, showing its rows aggregated by
+  `aggregation`/`valueField` (row count by default).
+- **With `field`**: one **series** per data source, all grouped by `field` on shared axes - e.g.
+  side-by-side or `stacked` bars comparing each sublayer's feature count per category.
+  `aggregation`, `sort`, `limit` and `histogram` binning all work the same as single-source mode.
+- **`scatter`**: one point cloud per data source (`xField`/`yField` or auto-detected).
 
 ```json
 {
@@ -136,17 +201,20 @@ set, `dataSource`/`field`/`aggregation`/`valueField` are ignored; not supported 
 }
 ```
 
-Clicking toggles that source in/out of the selection, emitted on this panel's channel as a
-reserved field (not a real row field) carrying the selected data source ids. A `map` panel that
-`listensTo` the same channel will show only the selected sources' layers, hiding every OTHER
-layer backed by a data source listed in this chart's own `sources` - a layer backed by a data
-source that ISN'T one of this chart's `sources` is left alone regardless of what's selected, and
-everything shows again once the selection is cleared/empty.
+Without a `field`, clicking toggles that **source** in/out of the selection, emitted on this
+panel's channel as a reserved field (not a real row field) carrying the selected data source ids.
+A `map` panel that `listensTo` the same channel will show only the selected sources' layers,
+hiding every OTHER layer backed by a data source listed in this chart's own `sources` - a layer
+backed by a data source that ISN'T one of this chart's `sources` is left alone regardless of
+what's selected, and everything shows again once the selection is cleared/empty. With a `field`,
+clicking selects that `field` value instead, the same as a single-source chart.
 
-Each entry's `color` overrides its auto-assigned color, same as the single-source `colors` map above.
+Each entry's `color` overrides its auto-assigned color (the bar's color without a `field`, or the
+whole series' color with one), same as the single-source `colors` map above.
 
-Each entry's bar label defaults to that data source's underlying map layer name (for `map-layer`
-sources) or its id otherwise - `label` overrides this per entry.
+Each entry's label (bar label, or series name in the legend) defaults to that data source's
+underlying map layer name (for `map-layer` sources) or its id otherwise - `label` overrides this
+per entry.
 
 ## `stat`
 

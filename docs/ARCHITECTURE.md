@@ -526,3 +526,46 @@ custom theme re-skins the whole dashboard without touching individual components
   - Clicking a chart element calls `onSelect(rows[elements[0].index])` via Chart.js's `onClick`
     handler, feeding the same linking-channel mechanism as before (verified live: clicking a bar
     updates the linked `TablePanel`'s "Linked selection" text).
+
+## 13. Chart series, binning & explicit axes
+
+The original chart panel could only draw ONE dataset: one bar per `field` value (single source)
+or one bar per data source's row count (`sources`). Real dashboards needed charts like "active
+fires by agency, stacked by status" - two categorical dimensions on one chart.
+
+- **Data shaping is pure and separate** (`src/panels/chartData.ts`, tested in
+  `chartData.test.ts`): `buildCategoryChartData(seriesInputs, categoryOf, options)` groups every
+  series' rows onto ONE shared category axis, so all datasets line up (required for
+  grouped/stacked bars). Single-source charts get their series from `splitIntoSeries(rows,
+  seriesField)`; multi-source charts with a `field` use one series per data source - the same
+  function serves both. `ChartPanel.tsx` is now just linking + Chart.js rendering via a shared
+  `CategoryChart` (bar/line/pie/histogram) and `ScatterChartView`.
+- **New config** (all optional, existing configs render identically): `seriesField`, `stacked`,
+  `horizontal`, `showValueLabels`, `sort` (`label`/`value-asc`/`value-desc`), `limit` (top N +
+  "Other"), `bins`, `xField`/`yField`, `xAxisTitle`/`yAxisTitle`. In multi-source mode `field` is
+  no longer ignored - it switches from "one bar per source" to "one series per source grouped by
+  field"; `aggregation`/`valueField` now apply there too; scatter is supported (one point cloud
+  per source).
+- **"Other" bucket** uses a sentinel key (`OTHER_CATEGORY_KEY`, contains a NUL char) so a real
+  category literally named "Other" never collides; it's re-aggregated from its underlying rows
+  (correct for avg/min/max, not a sum of per-group values) and isn't clickable.
+- **Sorting by value with several series** ranks by the aggregate across all series combined
+  (= stacked bar total for count/sum).
+- **Empty (series, category) cells** are `0` for count/sum but `null` for avg/min/max, so Chart.js
+  draws a gap instead of a misleading zero.
+- **Histogram** is real binning now: equal-width bins over a numeric `field`, edges computed from
+  the UNFILTERED rows so bins don't shift while cross-filtering. Bins aren't field values, so
+  clicking a bin selects nothing. A non-numeric `field` falls back to categorical grouping (the
+  old alias-for-bar behavior), so nothing that worked before breaks.
+- **Selection with series**: a click selects the CATEGORY (`field` value), not the series - same
+  channel semantics as before, so map/table/stat consumers needed no changes. Per-source mode (no
+  `field`) still selects sources via `CHART_SOURCE_FIELD` and is the only mode that publishes
+  `CHART_SOURCE_UNIVERSE_FIELD`.
+- **Cross-filtering** now always applies (minus the chart's own selection field) - previously a
+  single-source chart without a `field` (ungrouped/scatter) ignored listened channels entirely.
+- **Robustness**: MUI's `darken`/`lighten`/`getLuminance` throw on CSS named colors (e.g. `"red"`
+  in `colors`); selection emphasis and value-label contrast now catch that and fall back instead
+  of crashing the chart.
+- Value labels use the already-registered `chartjs-plugin-datalabels`; bar labels are hidden when
+  their segment is under ~14px (measured via the value scale), mirroring how ESRI-style dashboards
+  omit labels on thin stacked slivers.

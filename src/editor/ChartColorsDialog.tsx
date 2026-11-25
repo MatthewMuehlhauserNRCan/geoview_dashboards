@@ -23,6 +23,8 @@ interface ChartColorsDialogProps {
   open: boolean;
   onClose: () => void;
   colors: Record<string, string>;
+  // Which field the color keys are values of, as labeled in the inspector ("Field" / "Series field").
+  keyedBy?: string;
   onChange: (next: Record<string, string>) => void;
 }
 
@@ -32,7 +34,7 @@ interface ChartColorsDialogProps {
 // doesn't reorder/jump the row (an object's key order shifts when a key is deleted+reinserted).
 // The caller remounts this component (via a `key` that changes) each time it opens, so this local
 // draft always starts fresh from the current `colors` without needing an effect to resync it.
-export function ChartColorsDialog({ open, onClose, colors, onChange }: ChartColorsDialogProps) {
+export function ChartColorsDialog({ open, onClose, colors, keyedBy = 'Field', onChange }: ChartColorsDialogProps) {
   const [draft, setDraft] = useState<ColorEntry[]>(() => Object.entries(colors).map(([category, color]) => ({ category, color })));
 
   const commit = (next: ColorEntry[]) => {
@@ -45,8 +47,8 @@ export function ChartColorsDialog({ open, onClose, colors, onChange }: ChartColo
       <DialogTitle>Customize category colors</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Overrides the auto-assigned color for specific values of the Field above (matched by the
-          exact raw value, e.g. "Natural"). Any category not listed here still gets its own
+          Overrides the auto-assigned color for specific values of the {keyedBy} above (matched by the
+          exact raw value, e.g. "Natural"). Any value not listed here still gets its own
           auto-assigned color.
         </Typography>
         <List dense disablePadding>

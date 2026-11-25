@@ -46,7 +46,7 @@ export function groupAndAggregate(
 }
 
 // Plain string sort puts "10"/"11" before "2" - sort numerically when every label looks numeric.
-function sortLabels(labels: string[]): string[] {
+export function sortLabels(labels: string[]): string[] {
   const allNumeric = labels.every((label) => label.trim() !== '' && !Number.isNaN(Number(label)));
   return [...labels].sort((a, b) => (allNumeric ? Number(a) - Number(b) : a.localeCompare(b)));
 }

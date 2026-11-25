@@ -39,32 +39,64 @@ export interface MapPanelConfig extends BasePanelConfig {
 export interface ChartPanelConfig extends BasePanelConfig {
   type: 'chart';
   chartType: 'bar' | 'line' | 'pie' | 'scatter' | 'histogram';
-  // Optional categorical field to aggregate by (count of rows per distinct value) for
-  // bar/pie/histogram charts - e.g. a count of features per distinct "Symbol" value. Without it,
-  // these chart types fall back to one bar per raw row (only sensible for already-small row sets).
+  // Categorical field to group by (one bar/slice/point per distinct value) for bar/line/pie - e.g.
+  // a count of features per distinct "Symbol" value. For 'histogram', a NUMERIC field to bin
+  // instead (falls back to categorical grouping if its values aren't numeric). Without it,
+  // bar/line/pie fall back to one bar per raw row (see `xField`/`yField`).
   field?: string;
   // 'count' (default) counts rows per group; sum/avg/min/max aggregate `valueField` per group instead.
   aggregation?: 'count' | 'sum' | 'avg' | 'min' | 'max';
   // numeric field to aggregate; required (and only used) when aggregation isn't 'count'.
   valueField?: string;
-  // Alternative to `dataSource`/`field`-based grouping: one bar/slice per entry here, each
-  // pulling its OWN data source and counting its rows - e.g. one bar per sublayer of a group
-  // layer. Mutually exclusive with `dataSource`/`field` (when set, those are ignored). Not
-  // supported for chartType 'scatter' (which needs two numeric fields on one row set).
+  // Splits each `field` group into one dataset per distinct value of this second field (grouped
+  // bars, or one line/point cloud per value) - e.g. `field: "agency"` + `seriesField: "status"`.
+  // Combine with `stacked` for stacked bars. Ignored by 'pie' and in multi-source mode (where each
+  // source is already its own series).
+  seriesField?: string;
+  // Alternative to a single `dataSource`: pulls each entry's OWN data source. Without `field`
+  // (or for 'pie'), one bar/slice per source showing its aggregated rows (row count by default) -
+  // e.g. one bar per sublayer of a group layer. With `field`, one SERIES per source instead, all
+  // grouped by that field on shared axes. 'scatter' plots one point cloud per source.
   sources?: { dataSourceId: string; label?: string; color?: string }[];
-  // Overrides the auto-assigned color for specific category values (keyed by the `field`'s raw
-  // value, e.g. `{ "Natural": "#4caf50" }`) - any category not listed here still gets its own
-  // auto-assigned color. Ignored in multi-source mode (use `sources[].color` there instead).
+  // Overrides the auto-assigned color for specific values, keyed by raw value (e.g.
+  // `{ "Natural": "#4caf50" }`) - `field` values normally, or `seriesField` values when that's
+  // set (each series has one color). Anything not listed still gets its own auto-assigned color.
+  // Ignored in multi-source mode (use `sources[].color` there instead).
   colors?: Record<string, string>;
-  // Where the built-in per-category legend appears, or 'none' to hide it entirely. Defaults to
-  // 'right' (stacked vertically) for 'pie' - its auto-generated one-entry-per-slice legend gets
-  // crowded above the chart with more than a few categories; other chart types default to 'top'
-  // (one entry for the whole dataset, same as Chart.js's own default).
+  // Where the built-in legend appears, or 'none' to hide it entirely. Defaults to 'right'
+  // (stacked vertically) for 'pie' - its auto-generated one-entry-per-slice legend gets crowded
+  // above the chart with more than a few categories; other chart types default to 'top' (one entry
+  // per dataset/series, same as Chart.js's own default).
   legendPosition?: 'top' | 'right' | 'bottom' | 'left' | 'none';
   // 'pie' only: labels each slice directly with its category name, as an alternative (or
   // addition) to the legend - most useful with `legendPosition: 'none'` when there are many
   // categories and a long side legend is still more than wanted.
   showSliceLabels?: boolean;
+  // Draws each bar/segment/point/slice's value directly on the chart. Bar labels too small to
+  // fit inside their bar segment are skipped automatically.
+  showValueLabels?: boolean;
+  // bar/line/histogram with more than one series: stacks the series instead of placing them side
+  // by side (bar) or overlapping (line).
+  stacked?: boolean;
+  // bar/histogram only: bars run horizontally (categories down the left axis).
+  horizontal?: boolean;
+  // Category order when grouped by `field`: by label (default - numeric-aware) or by value
+  // (the aggregate across all series combined, e.g. a stacked bar's total). Not used by histogram
+  // (bins stay in numeric order).
+  sort?: 'label' | 'value-asc' | 'value-desc';
+  // Keeps only the first N categories (after `sort`) and folds the rest into one "Other" category.
+  limit?: number;
+  // 'histogram' only: number of equal-width bins (default 10).
+  bins?: number;
+  // Explicit columns instead of auto-detection: x/y for 'scatter', or label (x) / value (y) for
+  // ungrouped (no `field`) bar/line/pie charts. Auto-detected when omitted (first two numeric
+  // fields for scatter; first string + first numeric field otherwise).
+  xField?: string;
+  yField?: string;
+  // Overrides the auto-generated axis titles (by visual axis - x is horizontal even for
+  // `horizontal` bars). An empty string hides that title. Ignored by 'pie'.
+  xAxisTitle?: string;
+  yAxisTitle?: string;
   // Whether this chart's rows are restricted to the current map view extent, when a listened
   // channel actually carries one (published by a map panel with `interactions.emits` set) -
   // ignored entirely otherwise. Defaults to true (on by default); the viewer can still toggle it
