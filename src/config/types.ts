@@ -191,6 +191,64 @@ export interface ImagePanelConfig extends BasePanelConfig {
   autoplaySeconds?: number;
 }
 
+// Author-supplied visual identity for one card, keyed by that card's `titleField` value in
+// `CardsPanelConfig.cardStyles` - for when the data source has no icon/color fields of its own.
+export interface CardStyleConfig {
+  icon?: string;
+  color?: string;
+}
+
+// One manually-authored card (used instead of generating cards from `dataSource` rows) - plain
+// markdown, no `{{FieldName}}` templating (there's no row to fill in from).
+export interface CardEntryConfig {
+  title: string;
+  summary?: string;
+  detail?: string;
+  icon?: string;
+  color?: string;
+}
+
+// Either a fixed, manually-authored list (`cards`) or one card auto-generated per row of
+// `dataSource` (inherited from BasePanelConfig) - e.g. a grid of organizations, each showing a
+// short always-visible summary and a longer detail section revealed on hover (desktop) or by
+// tapping the card's own expand icon (touch). Cards are laid out in a responsive grid (more
+// columns on wide screens, a single stacked column on a phone-width screen).
+export interface CardsPanelConfig extends BasePanelConfig {
+  type: 'cards';
+  // A fixed list of cards, authored directly here - takes priority over `dataSource`-driven cards
+  // below when non-empty (e.g. for a handful of one-off cards with no backing service at all).
+  cards?: CardEntryConfig[];
+  // Fixed number of cards per row on wide screens (still naturally wraps to fewer on narrower
+  // screens, down to one at phone width) - omit for a fully responsive auto-fit grid instead.
+  columns?: number;
+  // field whose value becomes each card's title, and the key used to look up `cardStyles` -
+  // required (along with `dataSource`) when `cards` above is unset/empty.
+  titleField?: string;
+  // markdown (same {{FieldName}} placeholders as a text panel's `template`) always shown under
+  // the title, filled in from that row - e.g. a short status line. Ignored when `cards` is set
+  // (use each entry's own `summary` instead).
+  summaryTemplate?: string;
+  // markdown (same {{FieldName}} syntax) revealed on hover/tap - e.g. longer detail text, links.
+  // A card with no detail content has nothing to expand (no expand icon shown for it). Ignored
+  // when `cards` is set (use each entry's own `detail` instead).
+  detailTemplate?: string;
+  // reads an icon (image URL) / background color straight from each row, if the data source
+  // happens to provide them - checked before `cardStyles`/the default below. Ignored when `cards`
+  // is set (use each entry's own `icon`/`color` instead).
+  iconField?: string;
+  colorField?: string;
+  // per-card icon/color, keyed by the row's `titleField` value - used when `iconField`/
+  // `colorField` are unset, or a specific row has no value for them. Ignored when `cards` is set.
+  cardStyles?: Record<string, CardStyleConfig>;
+  // fallback icon/color when neither a row/manual-card entry nor `cardStyles` supplies one;
+  // `defaultColor` falls back further to the dashboard theme's primary color if also unset.
+  defaultIcon?: string;
+  defaultColor?: string;
+  // shown instead of the (empty) grid when there are zero cards to show (no `cards` entries, or
+  // `dataSource` returned zero rows).
+  emptyText?: string;
+}
+
 // Panel types that can be placed directly on the grid or nested inside a tab panel.
 export type LeafPanelConfig =
   | MapPanelConfig
@@ -200,7 +258,8 @@ export type LeafPanelConfig =
   | LegendPanelConfig
   | FilterPanelConfig
   | TextPanelConfig
-  | ImagePanelConfig;
+  | ImagePanelConfig
+  | CardsPanelConfig;
 
 export interface TabItemConfig {
   id: string;

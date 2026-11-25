@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import type { DataSourceConfig, TextPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
@@ -49,7 +50,12 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
     return (
       <PanelContainer title={panel.title}>
         <div className="markdown-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+          {/* `remarkBreaks` so a single `\n` in an author-written template renders as a real line
+              break (standard markdown otherwise collapses it into a mere space - easy to trip over
+              when a template's own header/value lines use just one newline between them). Only
+              applied here, not to a `contentUrl`/`content` document, which is more likely genuine
+              multi-paragraph prose relying on normal markdown line-wrapping. */}
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
         </div>
       </PanelContainer>
     );

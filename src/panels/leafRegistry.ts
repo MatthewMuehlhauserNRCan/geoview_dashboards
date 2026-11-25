@@ -8,6 +8,7 @@ import { LegendPanel } from './LegendPanel';
 import { FilterPanel } from './FilterPanel';
 import { TextPanel } from './TextPanel';
 import { ImagePanel } from './ImagePanel';
+import { CardsPanel } from './CardsPanel';
 
 // `any` is intentional: each component has a narrower, panel-specific prop type that a
 // single lookup-by-`type` registry can't express without losing the per-panel typing.
@@ -20,4 +21,5 @@ export const leafPanelRegistry: Record<LeafPanelConfig['type'], ComponentType<an
   filter: FilterPanel,
   text: TextPanel,
   image: ImagePanel,
+  cards: CardsPanel,
 };

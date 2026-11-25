@@ -143,6 +143,40 @@ const imagePanelFields = z
     path: ['src'],
   });
 
+const cardStyleSchema = z.object({
+  icon: z.string().optional(),
+  color: z.string().optional(),
+});
+
+const cardEntrySchema = z.object({
+  title: z.string(),
+  summary: z.string().optional(),
+  detail: z.string().optional(),
+  icon: z.string().optional(),
+  color: z.string().optional(),
+});
+
+const cardsPanelFields = z
+  .object({
+    ...baseFields,
+    type: z.literal('cards'),
+    cards: z.array(cardEntrySchema).optional(),
+    columns: z.number().positive().optional(),
+    titleField: z.string().optional(),
+    summaryTemplate: z.string().optional(),
+    detailTemplate: z.string().optional(),
+    iconField: z.string().optional(),
+    colorField: z.string().optional(),
+    cardStyles: z.record(z.string(), cardStyleSchema).optional(),
+    defaultIcon: z.string().optional(),
+    defaultColor: z.string().optional(),
+    emptyText: z.string().optional(),
+  })
+  .refine((panel) => Boolean(panel.cards?.length) || Boolean(panel.titleField), {
+    message: 'cards panel requires either `cards` (a manual list) or `titleField` (with `dataSource`)',
+    path: ['titleField'],
+  });
+
 const leafPanelSchema = z.discriminatedUnion('type', [
   mapPanelFields,
   chartPanelFields,
@@ -152,6 +186,7 @@ const leafPanelSchema = z.discriminatedUnion('type', [
   filterPanelFields,
   textPanelFields,
   imagePanelFields,
+  cardsPanelFields,
 ]);
 
 const tabItemSchema = z.object({
@@ -183,6 +218,7 @@ const panelSchema = z.discriminatedUnion('type', [
   filterPanelFields,
   textPanelFields,
   imagePanelFields,
+  cardsPanelFields,
   tabPanelFields,
   stackPanelFields,
 ]);

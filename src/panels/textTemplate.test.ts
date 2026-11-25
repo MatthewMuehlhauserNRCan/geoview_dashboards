@@ -18,6 +18,37 @@ describe('fillTextTemplate', () => {
   it('tolerates whitespace inside the placeholder', () => {
     expect(fillTextTemplate('{{ Header1_EN }}', { Header1_EN: 'Overview' })).toBe('Overview');
   });
+
+  it('keeps a conditional section when its field is non-empty, substituting inside it', () => {
+    const template = '{{#Activities}}**Activities**\n{{Activities}}{{/Activities}}';
+    expect(fillTextTemplate(template, { Activities: 'Flooding response' })).toBe('**Activities**\nFlooding response');
+  });
+
+  it('drops a conditional section entirely when its field is missing/null/blank', () => {
+    const template = 'before {{#Activities}}**Activities**\n{{Activities}}{{/Activities}} after';
+    expect(fillTextTemplate(template, { Activities: '' })).toBe('before  after');
+    expect(fillTextTemplate(template, { Activities: null })).toBe('before  after');
+    expect(fillTextTemplate(template, {})).toBe('before  after');
+    expect(fillTextTemplate(template, undefined)).toBe('before  after');
+  });
+
+  it('treats a real 0 or false value as present, not empty', () => {
+    expect(fillTextTemplate('{{#Count}}Count: {{Count}}{{/Count}}', { Count: 0 })).toBe('Count: 0');
+    expect(fillTextTemplate('{{#Flag}}Flag: {{Flag}}{{/Flag}}', { Flag: false })).toBe('Flag: false');
+  });
+
+  it('handles multiple independent conditional sections in one template', () => {
+    const template = '{{#A}}A: {{A}}{{/A}}|{{#B}}B: {{B}}{{/B}}';
+    expect(fillTextTemplate(template, { A: 'x' })).toBe('A: x|');
+    expect(fillTextTemplate(template, { B: 'y' })).toBe('|B: y');
+  });
+
+  it('supports a differently-named section nested inside another', () => {
+    const template = '{{#A}}outer {{#B}}inner {{B}}{{/B}} end{{/A}}';
+    expect(fillTextTemplate(template, { A: 'x', B: 'y' })).toBe('outer inner y end');
+    expect(fillTextTemplate(template, { A: 'x' })).toBe('outer  end');
+    expect(fillTextTemplate(template, {})).toBe('');
+  });
 });
 
 describe('renderTextTemplate', () => {

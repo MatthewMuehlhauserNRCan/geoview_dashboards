@@ -46,6 +46,7 @@ import { AddPanelDialog } from './AddPanelDialog';
 import { ChartSourcesDialog } from './ChartSourcesDialog';
 import { ChartColorsDialog } from './ChartColorsDialog';
 import { TableSourcesDialog } from './TableSourcesDialog';
+import { CardStylesDialog } from './CardStylesDialog';
 import { generateId } from './idUtils';
 
 interface MapPanelOption {
@@ -90,6 +91,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   const [chartSourcesDialogOpen, setChartSourcesDialogOpen] = useState(false);
   const [chartColorsDialogOpen, setChartColorsDialogOpen] = useState(false);
   const [tableSourcesDialogOpen, setTableSourcesDialogOpen] = useState(false);
+  const [cardStylesDialogOpen, setCardStylesDialogOpen] = useState(false);
 
   const commitConfigText = () => {
     try {
@@ -104,6 +106,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   const selectedDataSource = dataSources.find((ds) => ds.id === leafPanel.dataSource);
   const isMultiSourcePanel = leafPanel.type === 'chart' || leafPanel.type === 'table';
   const isChartMultiSource = leafPanel.type === 'chart' && Boolean(leafPanel.sources?.length);
+  const isCardsManual = leafPanel.type === 'cards' && Boolean(leafPanel.cards?.length);
   const multiSourceIds = isMultiSourcePanel
     ? (leafPanel.sources?.length ? leafPanel.sources.map((s) => s.dataSourceId) : leafPanel.dataSource ? [leafPanel.dataSource] : [])
     : [];
@@ -165,7 +168,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           </Typography>
         </FormControl>
       ) : (
-        <FormControl size="small" fullWidth disabled={isChartMultiSource}>
+        <FormControl size="small" fullWidth disabled={isChartMultiSource || isCardsManual}>
           <InputLabel>Data source</InputLabel>
           <Select
             label="Data source"
@@ -635,7 +638,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           <TextField
             label="Template"
             placeholder={'## {{Header1_EN}}\n\n{{Text1_EN}}'}
-            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from Data source's row(s) (above). Takes priority over Content/Content URL below."
+            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from Data source's row(s) (above). Wrap part of it in {{#Field}}...{{/Field}} to hide that whole section when Field is empty. Takes priority over Content/Content URL below."
             value={leafPanel.template ?? ''}
             multiline
             minRows={3}
@@ -776,6 +779,247 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               )}
             </>
           )}
+        </Stack>
+      )}
+
+      {leafPanel.type === 'cards' && (
+        <Stack spacing={1.5}>
+          <TextField
+            label="Columns"
+            type="number"
+            placeholder="Auto"
+            helperText="Cards per row on wide screens (still wraps to fewer on narrower ones). Leave blank for a fully responsive auto-fit grid."
+            value={leafPanel.columns ?? ''}
+            fullWidth
+            size="small"
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+            onChange={(e) => {
+              const columns = Number(e.target.value);
+              onChange((p) => (p.type === 'cards' ? { ...p, columns: e.target.value && columns > 0 ? columns : undefined } : p));
+            }}
+          />
+          <Divider />
+          <Typography variant="subtitle2">Manual cards</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Author a fixed list of cards directly here (takes priority over Data source below), or
+            leave this empty and set Data source + Title field below to generate one card per row
+            instead.
+          </Typography>
+          {(leafPanel.cards ?? []).map((card, index) => (
+            <Accordion key={index} disableGutters>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>{card.title || `Card ${index + 1}`}</AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={1.5}>
+                  <TextField
+                    label="Title"
+                    value={card.title}
+                    fullWidth
+                    size="small"
+                    onChange={(e) =>
+                      onChange((p) =>
+                        p.type === 'cards'
+                          ? { ...p, cards: (p.cards ?? []).map((c, i) => (i === index ? { ...c, title: e.target.value } : c)) }
+                          : p,
+                      )
+                    }
+                  />
+                  <TextField
+                    label="Header image URL"
+                    helperText="Full-width image for the front of the card - expected to already include the card's own title/branding. Leave blank to show the title as plain text on a colored band instead."
+                    value={card.icon ?? ''}
+                    fullWidth
+                    size="small"
+                    onChange={(e) =>
+                      onChange((p) =>
+                        p.type === 'cards'
+                          ? {
+                              ...p,
+                              cards: (p.cards ?? []).map((c, i) =>
+                                i === index ? { ...c, icon: e.target.value || undefined } : c,
+                              ),
+                            }
+                          : p,
+                      )
+                    }
+                  />
+                  <TextField
+                    label="Color"
+                    placeholder="e.g. #9c1f28"
+                    helperText="Background for the fallback colored band (used only when Header image URL is blank)."
+                    value={card.color ?? ''}
+                    fullWidth
+                    size="small"
+                    onChange={(e) =>
+                      onChange((p) =>
+                        p.type === 'cards'
+                          ? {
+                              ...p,
+                              cards: (p.cards ?? []).map((c, i) =>
+                                i === index ? { ...c, color: e.target.value || undefined } : c,
+                              ),
+                            }
+                          : p,
+                      )
+                    }
+                  />
+                  <TextField
+                    label="Summary (markdown)"
+                    value={card.summary ?? ''}
+                    multiline
+                    minRows={2}
+                    fullWidth
+                    size="small"
+                    onChange={(e) =>
+                      onChange((p) =>
+                        p.type === 'cards'
+                          ? {
+                              ...p,
+                              cards: (p.cards ?? []).map((c, i) =>
+                                i === index ? { ...c, summary: e.target.value || undefined } : c,
+                              ),
+                            }
+                          : p,
+                      )
+                    }
+                  />
+                  <TextField
+                    label="Detail (markdown)"
+                    value={card.detail ?? ''}
+                    multiline
+                    minRows={3}
+                    fullWidth
+                    size="small"
+                    onChange={(e) =>
+                      onChange((p) =>
+                        p.type === 'cards'
+                          ? {
+                              ...p,
+                              cards: (p.cards ?? []).map((c, i) =>
+                                i === index ? { ...c, detail: e.target.value || undefined } : c,
+                              ),
+                            }
+                          : p,
+                      )
+                    }
+                  />
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={() =>
+                      onChange((p) => (p.type === 'cards' ? { ...p, cards: (p.cards ?? []).filter((_, i) => i !== index) } : p))
+                    }
+                  >
+                    Remove card
+                  </Button>
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          ))}
+          <Button
+            size="small"
+            onClick={() => onChange((p) => (p.type === 'cards' ? { ...p, cards: [...(p.cards ?? []), { title: '' }] } : p))}
+          >
+            + Add card
+          </Button>
+          <Divider />
+          <TextField
+            label="Title field"
+            helperText="Row field whose value becomes each card's title, and the key used to look up Card styles below. Ignored while Manual cards above are set."
+            value={leafPanel.titleField ?? ''}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.cards?.length)}
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, titleField: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="Summary template"
+            placeholder={'**Activation Level**\n{{ActivationLevel}}'}
+            helperText="Optional - markdown with {{FieldName}} placeholders, shown under the header on BOTH the front and the back (it never swaps away). Wrap part of it in {{#Field}}...{{/Field}} to hide that whole section when Field is empty. Ignored while Manual cards above are set."
+            value={leafPanel.summaryTemplate ?? ''}
+            multiline
+            minRows={2}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.cards?.length)}
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, summaryTemplate: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="Detail template"
+            placeholder={'{{#Activities}}**Current or Projected Activities**\n{{Activities}}{{/Activities}}'}
+            helperText="Optional - markdown shown on the back of the card (below the title, which reappears as plain text there), revealed by hovering (desktop) or tapping the card's expand icon. Wrap part of it in {{#Field}}...{{/Field}} to hide that whole section when Field is empty. A card with no Header image AND nothing here has no back to flip to (shown statically). Ignored while Manual cards above are set."
+            value={leafPanel.detailTemplate ?? ''}
+            multiline
+            minRows={3}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.cards?.length)}
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, detailTemplate: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="Icon field"
+            helperText="Optional - row field holding the card's full front-of-card header image URL (should already include the card's own title/branding), if the data source provides one. Ignored while Manual cards above are set."
+            value={leafPanel.iconField ?? ''}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.cards?.length)}
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, iconField: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="Color field"
+            helperText="Optional - row field holding the fallback band's background color (used only when there's no header image), if the data source provides one. Ignored while Manual cards above are set."
+            value={leafPanel.colorField ?? ''}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.cards?.length)}
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, colorField: e.target.value || undefined } : p))}
+          />
+          <Box>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DatasetIcon />}
+              disabled={Boolean(leafPanel.cards?.length)}
+              onClick={() => setCardStylesDialogOpen(true)}
+            >
+              Customize icons/colors
+              {leafPanel.cardStyles && Object.keys(leafPanel.cardStyles).length ? ` (${Object.keys(leafPanel.cardStyles).length})` : ''}
+            </Button>
+            <CardStylesDialog
+              key={String(cardStylesDialogOpen)}
+              open={cardStylesDialogOpen}
+              onClose={() => setCardStylesDialogOpen(false)}
+              cardStyles={leafPanel.cardStyles ?? {}}
+              onChange={(next) =>
+                onChange((p) => (p.type === 'cards' ? { ...p, cardStyles: Object.keys(next).length ? next : undefined } : p))
+              }
+            />
+          </Box>
+          <TextField
+            label="Default icon URL"
+            helperText="Fallback header image when neither a card's own icon nor Customize icons/colors supplies one."
+            value={leafPanel.defaultIcon ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, defaultIcon: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="Default color"
+            placeholder="e.g. #9c1f28 (falls back to the theme's primary color if unset)"
+            value={leafPanel.defaultColor ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, defaultColor: e.target.value || undefined } : p))}
+          />
+          <TextField
+            label="No results text"
+            placeholder="No data available."
+            helperText="Optional - shown instead of the (empty) grid when there are zero cards to show."
+            value={leafPanel.emptyText ?? ''}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, emptyText: e.target.value || undefined } : p))}
+          />
         </Stack>
       )}
     </Stack>

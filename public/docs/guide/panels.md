@@ -323,6 +323,24 @@ interface TextPanelConfig {
   `url` - a data source is just a URL, there's no separate per-panel query/filter config. A
   `rest-json` source pointed at an ArcGIS `query` endpoint is automatically unwrapped from its
   `{ features: [{ attributes: {...} }] }` response shape into plain rows.
+- **Conditional sections**: wrap part of a template in `{{#FieldName}}...{{/FieldName}}` to show
+  that whole section (including its own header/wording, not just the field's own value) only when
+  `FieldName` actually has a value on the row - empty/missing/blank hides the entire section,
+  tags and all. A real `0` or `false` value still counts as present. Useful for e.g. hiding a
+  "Current or Projected Activities" header entirely when there's nothing to report that day:
+  ```
+  {{#Activities}}
+  **Current or Projected Activities**
+  {{Activities}}
+  {{/Activities}}
+  ```
+  Sections can sit side by side or nest (a differently-named section inside another), but a
+  section can't nest inside ANOTHER section of the *same* name.
+- **Line breaks**: a `template` (unlike `content`/`contentUrl`) renders every single `\n` as a
+  real line break, not just a double `\n\n` (standard markdown otherwise collapses a lone
+  newline into just a space, which is easy to trip over when a template's own header/value lines
+  are only one newline apart, e.g. `'**Activation Level**\n{{ActivationLevel}}'` - this is exactly
+  what makes that render as two lines instead of one run-on sentence).
 - Raw HTML embedded in markdown is NOT rendered (intentionally, to avoid a script-injection risk
   when `contentUrl`/`template` points at content the dashboard author doesn't fully control) - only
   genuine markdown syntax is converted to formatting.
@@ -386,6 +404,88 @@ interface ImagePanelConfig {
     { "src": "https://example.com/site-a.jpg", "alt": "Site A", "caption": "Spring survey", "title": "Site A" },
     { "src": "https://example.com/site-b.jpg", "alt": "Site B", "caption": "River outlet", "title": "Site B" }
   ]
+}
+```
+
+## `cards`
+
+A responsive grid of flip-style cards - either a fixed, manually-authored list, or one card
+auto-generated per row of `dataSource` - e.g. one card per organization. `columns` fixes how many
+show per row on wide screens (still naturally wraps to fewer on narrower ones, down to a single
+stacked column at phone width); omit it for a fully responsive auto-fit grid instead.
+
+Each card has a **front** and a **back**, swapped by hovering the card (desktop) or tapping its
+own expand icon (touch only - a real pointer device already reveals the back on hover alone, so
+the icon doesn't show there at all):
+- **Front**: a colored band (`color`, always shown) containing `icon` - sized smaller than the
+  band itself and centered, not stretched edge-to-edge - which is expected to already contain the
+  card's own branding/title baked into the graphic (e.g. a logo + organization name) on a
+  transparent background, so the band's own color shows around it. A card with no `icon` shows
+  the title as text in the band instead. Directly below: `summary`, which stays visible on BOTH
+  the front and the back (it never swaps away). The front's own content is what fixes this card's
+  height.
+- **Back**: the title re-appears here as plain text (since the image itself isn't shown anymore),
+  followed by `summary` again and then `detail`. It slides up to cover the front rather than
+  growing the card to fit - if its content is taller than the front, it scrolls internally instead
+  of changing this card's (or its whole grid row's) size. A card with neither `icon` nor `detail`
+  has nothing to flip to, so it's shown statically with no hover/tap affordance at all.
+
+```ts
+interface CardsPanelConfig {
+  type: 'cards';
+  // a fixed list, authored directly - takes priority over dataSource-driven cards below when set
+  cards?: Array<{ title: string; summary?: string; detail?: string; icon?: string; color?: string }>;
+  columns?: number; // cards per row on wide screens; omit for a fully responsive auto-fit grid
+  // required (along with dataSource) when `cards` above is unset/empty:
+  titleField?: string; // row field used as each card's title, and the key for cardStyles below
+  summaryTemplate?: string; // markdown w/ {{FieldName}} placeholders, shown under the header on BOTH faces
+  detailTemplate?: string; // markdown shown on the back, under the title; omit for no flip at all
+  iconField?: string; // row field holding the card's full header image URL, if the data source provides one
+  colorField?: string; // row field holding the fallback band's background color, if provided
+  cardStyles?: Record<string, { icon?: string; color?: string }>; // per-card fallback, keyed by titleField's value
+  // used by both modes:
+  defaultIcon?: string; // fallback header image when nothing else (row/manual card/cardStyles) supplies one
+  defaultColor?: string; // fallback band color; falls back further to the theme's primary color
+  emptyText?: string; // shown instead of the (empty) grid when there are zero cards to show
+}
+```
+
+- **Manual mode** (`cards` set, non-empty): each entry's own `summary`/`detail` is plain markdown
+  (no `{{FieldName}}` templating - there's no row to fill in from) - use this for a handful of
+  one-off cards with no backing data source at all, or content a service can't provide (mixing
+  freely with `defaultIcon`/`defaultColor` as a per-entry fallback). `dataSource` and every
+  `*Field`/`*Template` field below are ignored while `cards` is set.
+- **Data-driven mode** (`cards` unset/empty, `titleField` + `dataSource` set): point `dataSource`
+  at a `rest-json`/`static-file` source returning ALL the rows you want cards for (e.g. every
+  organization in one feature-service query) - **one shared data source, not one per card** - the
+  panel renders one card per row. This is the key difference from a `text` panel's `template`,
+  which is meant for ONE feature per panel; `cards` is meant for MANY features in one panel, from
+  one shared fetch. `summaryTemplate`/`detailTemplate` use the exact same `{{FieldName}}` markdown
+  templating as a [text panel's `template`](#text) - INCLUDING `{{#FieldName}}...{{/FieldName}}`
+  conditional sections - filled in per-row.
+- **Icon/color** (data-driven mode): checked in this order per card: (1) `iconField`/`colorField`
+  read straight from that row, if the data source happens to provide them; (2)
+  `cardStyles[titleField's value]`, an author-maintained map for data sources that don't have
+  icon/color fields (so you don't need a separate data source or column just for styling); (3)
+  `defaultIcon`/`defaultColor`.
+- Like every panel, `dataSource` is just a URL/fetch - if the underlying service also has other
+  consumers (e.g. a `text` panel showing one filtered feature), that's a completely separate data
+  source entry pointed at a differently-filtered URL (see [Data Sources](data-sources.md)); this
+  panel's own `dataSource` should return the FULL set of rows you want cards for, unfiltered.
+
+```json
+{
+  "id": "federal-activities",
+  "type": "cards",
+  "dataSource": "federal-activities-all",
+  "titleField": "AgencyName",
+  "summaryTemplate": "**Activation Level**\n{{ActivationLevel}}",
+  "detailTemplate": "**Current or Projected Activities**\n{{Activities}}",
+  "cardStyles": {
+    "Canada Border Services Agency": { "icon": "https://example.com/cbsa.svg", "color": "#9c1f28" },
+    "Canadian Food Inspection Agency": { "icon": "https://example.com/cfia.svg", "color": "#2e7d32" }
+  },
+  "emptyText": "No federal activities to report."
 }
 ```
 
