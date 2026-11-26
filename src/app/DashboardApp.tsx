@@ -133,8 +133,10 @@ export function DashboardApp({ config }: DashboardAppProps) {
                   <PrintIcon fontSize="small" />
                 </IconButton>
               )}
-              {activePage.titlePanel && <TitlePanel key={activePage.id} config={activePage.titlePanel} />}
-              {activePage.pageHeading && <PageHeading key={activePage.id} config={activePage.pageHeading} />}
+              {/* Distinct key prefixes: these are siblings, and duplicate sibling keys make React
+                  leak stale copies on page switch instead of replacing them. */}
+              {activePage.titlePanel && <TitlePanel key={`title-panel-${activePage.id}`} config={activePage.titlePanel} />}
+              {activePage.pageHeading && <PageHeading key={`page-heading-${activePage.id}`} config={activePage.pageHeading} />}
               {/* Only the grid gets the remaining space and may scroll/shrink - nothing around it
                   is ever pushed off-screen or clipped. `id`/`tabIndex` make this the skip link's
                   target; `region`+`aria-label` give it a landmark (not `main`, since the embed

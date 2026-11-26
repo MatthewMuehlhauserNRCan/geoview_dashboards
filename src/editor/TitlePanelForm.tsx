@@ -10,6 +10,11 @@ interface TitlePanelFormProps {
 
 const DEFAULT_TITLE_PANEL: TitlePanelConfig = {};
 
+function parseWidth(raw: string): number | undefined {
+  const n = Number(raw);
+  return raw === '' || !Number.isFinite(n) || n < 0 ? undefined : n;
+}
+
 // A thin, resizable strip below the title element - unlike `titleElement`, this is authored
 // per-page (see TitleElementForm for the dashboard-wide header).
 export function TitlePanelForm({ value, onChange, onApplyToAllPages }: TitlePanelFormProps) {
@@ -39,6 +44,27 @@ export function TitlePanelForm({ value, onChange, onApplyToAllPages }: TitlePane
             fullWidth
             onChange={(e) => onChange({ ...config, right: e.target.value || undefined })}
           />
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Left width"
+              type="number"
+              value={config.leftWidth ?? ''}
+              size="small"
+              placeholder="1"
+              slotProps={{ htmlInput: { min: 0, step: 0.5 } }}
+              onChange={(e) => onChange({ ...config, leftWidth: parseWidth(e.target.value) })}
+            />
+            <TextField
+              label="Right width"
+              type="number"
+              value={config.rightWidth ?? ''}
+              size="small"
+              placeholder="1"
+              helperText="Relative weights, e.g. 2 and 1 = left gets 2/3"
+              slotProps={{ htmlInput: { min: 0, step: 0.5 } }}
+              onChange={(e) => onChange({ ...config, rightWidth: parseWidth(e.target.value) })}
+            />
+          </Stack>
           <TextField
             label="Image URL"
             value={config.image?.src ?? ''}

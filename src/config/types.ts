@@ -547,6 +547,10 @@ export interface TitlePanelConfig {
   left?: string;
   image?: TitleImageConfig;
   right?: string;
+  // Relative widths (flex-grow weights) of the left/right text boxes - the image always takes
+  // only its natural width between them. Both default to 1 (even split).
+  leftWidth?: number;
+  rightWidth?: number;
   backgroundColor?: string;
 }
 

@@ -67,9 +67,16 @@ interface TitlePanelConfig {
   left?: string;
   image?: { src: string; alt?: string; href?: string };
   right?: string;
+  leftWidth?: number;  // relative width of the left text box (default 1)
+  rightWidth?: number; // relative width of the right text box (default 1)
   backgroundColor?: string;
 }
 ```
+
+`leftWidth`/`rightWidth` are relative weights, not pixels or percentages: the image always takes
+only its natural width, and the remaining space is split between the left and right text in that
+ratio. E.g. `"leftWidth": 2, "rightWidth": 1` gives the left text ~2/3 of the strip, with the
+image and right text sharing the last third (the image sitting at the start of it).
 
 Set per-page (`DashboardPageConfig.titlePanel`) - different pages can show different title-panel
 text, or omit it entirely. Starts sized to its content and only becomes a fixed height once a

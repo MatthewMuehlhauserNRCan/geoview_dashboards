@@ -347,6 +347,8 @@ const titlePanelSchema = z.object({
   left: z.string().optional(),
   image: titleImageSchema.optional(),
   right: z.string().optional(),
+  leftWidth: z.number().nonnegative().optional(),
+  rightWidth: z.number().nonnegative().optional(),
   backgroundColor: z.string().optional(),
 });
 
