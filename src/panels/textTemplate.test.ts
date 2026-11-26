@@ -49,6 +49,21 @@ describe('fillTextTemplate', () => {
     expect(fillTextTemplate(template, { A: 'x' })).toBe('outer  end');
     expect(fillTextTemplate(template, {})).toBe('');
   });
+
+  it('reads {{$name}} from named values, never from the row, so the two cannot collide', () => {
+    const row = { count: 'row value', $count: 'row dollar field' };
+    expect(fillTextTemplate('{{count}} / {{$count}}', row, { count: '42' })).toBe('row value / 42');
+    expect(fillTextTemplate('{{ $count }}', undefined, { count: '7' })).toBe('7');
+    expect(fillTextTemplate('[{{$missing}}]', undefined, {})).toBe('[]');
+    expect(fillTextTemplate('[{{$count}}]', row)).toBe('[]');
+  });
+
+  it('supports {{#$name}} sections for named values', () => {
+    const template = '{{#$count}}{{$count}} shown · {{/$count}}Updated daily';
+    expect(fillTextTemplate(template, undefined, { count: '5' })).toBe('5 shown · Updated daily');
+    expect(fillTextTemplate(template, undefined, { count: undefined })).toBe('Updated daily');
+    expect(fillTextTemplate(template, undefined, { count: '0' })).toBe('0 shown · Updated daily');
+  });
 });
 
 describe('renderTextTemplate', () => {
@@ -69,6 +84,10 @@ describe('renderTextTemplate', () => {
   it('falls back to an empty-row render when there are no rows at all', () => {
     expect(renderTextTemplate('{{name}}', [], true)).toBe('');
     expect(renderTextTemplate('{{name}}', undefined, true)).toBe('');
+  });
+
+  it('passes named values through to every repeated row', () => {
+    expect(renderTextTemplate('{{name}}/{{$total}}', rows, true, { total: '3' })).toBe('A/3\n\n---\n\nB/3\n\n---\n\nC/3');
   });
 });
 

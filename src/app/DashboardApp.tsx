@@ -11,6 +11,7 @@ import { PageHeading } from '../title/PageHeading';
 import { FooterElement } from '../footer/FooterElement';
 import { createDashboardTheme } from '../theme/createDashboardTheme';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { TemplateValuesProvider } from '../templateValues/TemplateValuesProvider';
 
 // Largest envelope a sheet of Letter paper can offer, in CSS px (96/in), in either orientation -
 // used to pick whichever orientation fits the dashboard's own shape best.
@@ -97,66 +98,68 @@ export function DashboardApp({ config }: DashboardAppProps) {
             '*::-webkit-scrollbar-thumb:hover': { backgroundColor: theme.palette.action.active },
           }}
         />
-        <Box ref={rootRef} sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-          {/* Visually hidden until focused - lets keyboard/screen-reader users jump past the
-              title element's menu buttons straight to the dashboard content. */}
-          <a href="#dashboard-content" className="skip-link no-print">
-            Skip to dashboard content
-          </a>
-          {config.titleElement && <TitleElement config={config.titleElement} dataSources={config.dataSources} />}
-          {/* Border wraps everything except the title element, which sits outside/above it. */}
-          <Box
-            sx={{
-              position: 'relative',
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              border: '5px solid',
-              borderColor: 'divider',
-              borderRadius: '8px',
-              boxSizing: 'border-box',
-              overflow: 'hidden',
-            }}
-          >
-            {/* No titleElement means there's nowhere else to put a print action - float one
-                in the corner instead (titleElement gets its own inline button, see TitleElement.tsx). */}
-            {!config.titleElement && (
-              <IconButton
-                className="no-print"
-                aria-label="Print"
-                onClick={() => window.print()}
-                sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, bgcolor: 'background.paper', '&:hover': { bgcolor: 'action.hover' } }}
-              >
-                <PrintIcon fontSize="small" />
-              </IconButton>
-            )}
-            {activePage.titlePanel && <TitlePanel key={activePage.id} config={activePage.titlePanel} />}
-            {activePage.pageHeading && <PageHeading key={activePage.id} config={activePage.pageHeading} />}
-            {/* Only the grid gets the remaining space and may scroll/shrink - nothing around it
-                is ever pushed off-screen or clipped. `id`/`tabIndex` make this the skip link's
-                target; `region`+`aria-label` give it a landmark (not `main`, since the embed
-                bundle can be dropped into a host page that already has its own `<main>`). */}
-            <Box id="dashboard-content" tabIndex={-1} role="region" aria-label={config.title} sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              {activePage && (
-                <ErrorBoundary
-                  key={activePage.id}
-                  onError={(error) => console.error('Dashboard grid failed to render:', error)}
-                  fallback={() => (
-                    <Box sx={{ p: 2 }}>
-                      <Typography color="error">This page failed to render. See the browser console for details.</Typography>
-                    </Box>
-                  )}
+        <TemplateValuesProvider values={config.templateValues} dataSources={config.dataSources}>
+          <Box ref={rootRef} sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+            {/* Visually hidden until focused - lets keyboard/screen-reader users jump past the
+                title element's menu buttons straight to the dashboard content. */}
+            <a href="#dashboard-content" className="skip-link no-print">
+              Skip to dashboard content
+            </a>
+            {config.titleElement && <TitleElement config={config.titleElement} dataSources={config.dataSources} />}
+            {/* Border wraps everything except the title element, which sits outside/above it. */}
+            <Box
+              sx={{
+                position: 'relative',
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                border: '5px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+              }}
+            >
+              {/* No titleElement means there's nowhere else to put a print action - float one
+                  in the corner instead (titleElement gets its own inline button, see TitleElement.tsx). */}
+              {!config.titleElement && (
+                <IconButton
+                  className="no-print"
+                  aria-label="Print"
+                  onClick={() => window.print()}
+                  sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, bgcolor: 'background.paper', '&:hover': { bgcolor: 'action.hover' } }}
                 >
-                  <DashboardGrid grid={activePage.grid} panels={activePage.panels} dataSources={config.dataSources} />
-                </ErrorBoundary>
+                  <PrintIcon fontSize="small" />
+                </IconButton>
+              )}
+              {activePage.titlePanel && <TitlePanel key={activePage.id} config={activePage.titlePanel} />}
+              {activePage.pageHeading && <PageHeading key={activePage.id} config={activePage.pageHeading} />}
+              {/* Only the grid gets the remaining space and may scroll/shrink - nothing around it
+                  is ever pushed off-screen or clipped. `id`/`tabIndex` make this the skip link's
+                  target; `region`+`aria-label` give it a landmark (not `main`, since the embed
+                  bundle can be dropped into a host page that already has its own `<main>`). */}
+              <Box id="dashboard-content" tabIndex={-1} role="region" aria-label={config.title} sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                {activePage && (
+                  <ErrorBoundary
+                    key={activePage.id}
+                    onError={(error) => console.error('Dashboard grid failed to render:', error)}
+                    fallback={() => (
+                      <Box sx={{ p: 2 }}>
+                        <Typography color="error">This page failed to render. See the browser console for details.</Typography>
+                      </Box>
+                    )}
+                  >
+                    <DashboardGrid grid={activePage.grid} panels={activePage.panels} dataSources={config.dataSources} />
+                  </ErrorBoundary>
+                )}
+              </Box>
+              {config.pages.length > 1 && (
+                <FooterElement pages={config.pages} activePageId={activePage.id} onChange={setActivePageId} />
               )}
             </Box>
-            {config.pages.length > 1 && (
-              <FooterElement pages={config.pages} activePageId={activePage.id} onChange={setActivePageId} />
-            )}
           </Box>
-        </Box>
+        </TemplateValuesProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

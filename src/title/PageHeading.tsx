@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import type { PageHeadingConfig } from '../config/types';
+import { useFillTemplateValues } from '../templateValues/context';
 
 interface PageHeadingProps {
   config: PageHeadingConfig;
@@ -8,6 +9,7 @@ interface PageHeadingProps {
 // A plain, non-resizable single-line heading below TitlePanel - unlike TitlePanel's 3-column
 // left/image/right layout, this is just one line of text naming the current page/section.
 export function PageHeading({ config }: PageHeadingProps) {
+  const fill = useFillTemplateValues();
   return (
     <Box
       sx={{
@@ -21,7 +23,7 @@ export function PageHeading({ config }: PageHeadingProps) {
         color: config.textColor ?? 'text.primary',
       }}
     >
-      {config.text}
+      {fill(config.text)}
     </Box>
   );
 }

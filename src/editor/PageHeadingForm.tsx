@@ -26,6 +26,7 @@ export function PageHeadingForm({ value, onChange }: PageHeadingFormProps) {
         <Stack spacing={2}>
           <TextField
             label="Text"
+            helperText="Can include {{$valueId}} placeholders (see Values in the toolbar)."
             value={config.text}
             size="small"
             fullWidth

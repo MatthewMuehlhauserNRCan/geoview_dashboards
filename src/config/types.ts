@@ -176,8 +176,9 @@ export interface TextPanelConfig extends BasePanelConfig {
   // markdown template with `{{FieldName}}` placeholders, filled in from `dataSource` (inherited
   // from BasePanelConfig) - e.g. combining several header/body fields from one feature into one
   // formatted panel. A missing field renders as an empty string. Always rendered as markdown,
-  // like `contentUrl`. Requires `dataSource`; takes priority over `content`/`contentUrl` if more
-  // than one is set.
+  // like `contentUrl`. `{{$id}}` placeholders read dashboard-wide `templateValues` instead (no
+  // `dataSource` needed for those). Takes priority over `content`/`contentUrl` if more than one
+  // is set.
   template?: string;
   // when `dataSource` returns more than one row: true (default) repeats `template` once per row
   // (joined by a markdown rule); false renders it only against the first row, ignoring the rest.
@@ -442,6 +443,25 @@ export interface DashboardConfig {
   pages: DashboardPageConfig[];
   dataSources: DataSourceConfig[];
   linking?: LinkingConfig;
+  // Dashboard-wide named values pulled from data sources, usable as `{{$id}}` in any title text
+  // (title element, title panel, page heading) and in text/cards panel templates.
+  templateValues?: TemplateValueConfig[];
+}
+
+// One named value reduced from a data source's rows down to a single string - referenced as
+// `{{$id}}` (the `$` keeps it from colliding with a text panel's own `{{RowField}}` placeholders).
+export interface TemplateValueConfig {
+  // letters, digits, `_` and `-` only; unique across the dashboard
+  id: string;
+  dataSource: string;
+  // 'first' (default) takes `field` from the first (filtered) row as-is; 'count' counts rows;
+  // sum/avg/min/max aggregate numeric `field` across rows. `field` is required unless 'count'.
+  aggregation?: 'first' | 'count' | 'sum' | 'avg' | 'min' | 'max';
+  field?: string;
+  // fixed number of decimal places for a numeric result; omitted = the value exactly as-is
+  decimals?: number;
+  // linking channels whose filters are applied to the rows first (same as a panel's listensTo)
+  listensTo?: string[];
 }
 
 export interface TitleImageConfig {

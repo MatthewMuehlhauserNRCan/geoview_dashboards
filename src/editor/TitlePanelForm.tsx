@@ -33,6 +33,7 @@ export function TitlePanelForm({ value, onChange, onApplyToAllPages }: TitlePane
           />
           <TextField
             label="Right text"
+            helperText="Left/right text can include {{$valueId}} placeholders (see Values in the toolbar)."
             value={config.right ?? ''}
             size="small"
             fullWidth

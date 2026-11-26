@@ -10,6 +10,7 @@ import type {
   LinkingChannel,
   PageHeadingConfig,
   PanelLayout,
+  TemplateValueConfig,
   TitleElementConfig,
   TitlePanelConfig,
 } from '../config/types';
@@ -63,6 +64,7 @@ interface EditorState {
   applyTitlePanelToAllPages: (pageId: string) => void;
   setPageHeading: (pageId: string, pageHeading: PageHeadingConfig | undefined) => void;
   setTheme: (theme: DashboardThemeConfig | undefined) => void;
+  setTemplateValues: (templateValues: TemplateValueConfig[]) => void;
 
   addPage: () => void;
   renamePage: (pageId: string, label: string) => void;
@@ -127,6 +129,8 @@ export const useEditorStore = create<EditorState>()(
           config: { ...state.config, pages: state.config.pages.map((p) => (p.id === pageId ? { ...p, pageHeading } : p)) },
         })),
       setTheme: (theme) => set((state) => ({ config: { ...state.config, theme } })),
+      setTemplateValues: (templateValues) =>
+        set((state) => ({ config: { ...state.config, templateValues: templateValues.length > 0 ? templateValues : undefined } })),
 
       addPage: () =>
         set((state) => {

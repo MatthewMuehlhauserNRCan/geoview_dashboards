@@ -69,6 +69,7 @@ export function TitleElementForm({ value, channels, dataSources, onChange }: Tit
           <TextField label="Title" value={config.title} size="small" fullWidth onChange={(e) => onChange({ ...config, title: e.target.value })} />
           <TextField
             label="Subtitle"
+            helperText="Title and subtitle can include {{$valueId}} placeholders (see Values in the toolbar)."
             value={config.subtitle ?? ''}
             size="small"
             fullWidth

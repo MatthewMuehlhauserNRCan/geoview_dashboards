@@ -72,4 +72,38 @@ describe('parseDashboardConfig', () => {
   it('rejects an image panel with neither src nor images', () => {
     expect(() => parseDashboardConfig(withImagePanel({}))).toThrow();
   });
+
+  const withTemplateValues = (templateValues: unknown[]) => ({
+    id: 'd',
+    title: 'Dashboard',
+    dataSources: [],
+    pages: [],
+    templateValues,
+  });
+
+  it('accepts template values with and without a field', () => {
+    expect(() =>
+      parseDashboardConfig(
+        withTemplateValues([
+          { id: 'count_1', dataSource: 's', aggregation: 'count', listensTo: ['c'] },
+          { id: 'name-a', dataSource: 's', field: 'Name', decimals: 2 },
+        ]),
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects invalid template values', () => {
+    // field required unless counting
+    expect(() => parseDashboardConfig(withTemplateValues([{ id: 'v', dataSource: 's' }]))).toThrow();
+    // ids must be placeholder-safe and unique
+    expect(() => parseDashboardConfig(withTemplateValues([{ id: 'has space', dataSource: 's', aggregation: 'count' }]))).toThrow();
+    expect(() =>
+      parseDashboardConfig(
+        withTemplateValues([
+          { id: 'v', dataSource: 's', aggregation: 'count' },
+          { id: 'v', dataSource: 's', aggregation: 'count' },
+        ]),
+      ),
+    ).toThrow();
+  });
 });

@@ -15,6 +15,7 @@ interface DashboardConfig {
   pages: DashboardPageConfig[]; // one or more independent grid+panel sets
   dataSources: DataSourceConfig[]; // shared by every page
   linking?: LinkingConfig; // named cross-panel filter channels
+  templateValues?: TemplateValueConfig[]; // named data values for {{$id}} in titles/templates - see Title & Footer
 }
 ```
 
@@ -22,7 +23,7 @@ interface DashboardConfig {
   for the editor's own bookkeeping).
 - `pages` is an array, even for a single-page dashboard. A footer tab bar is shown automatically
   whenever there's more than one page - no separate config for it.
-- `dataSources` and `linking` are shared across every page (not authored per-page).
+- `dataSources`, `linking` and `templateValues` are shared across every page (not authored per-page).
 
 ## Loading a config
 

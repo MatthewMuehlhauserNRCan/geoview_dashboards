@@ -78,17 +78,18 @@ export function LegendPanel({ panel }: LegendPanelProps) {
     setLayers((prev) => prev.map((layer) => (layer.layerId === layerId ? { ...layer, visible } : layer)));
   };
 
+  // Emits OUTSIDE the setLayers updater (same as clearSelection) - React runs updaters during
+  // render, so publishing to the channel store from inside one updates every listening component
+  // mid-render ("Cannot update a component while rendering a different component").
   const toggleItem = (layerId: string, itemName: string, visible: boolean) => {
     mapHandle?.setLegendItemVisible(layerId, itemName, visible);
-    setLayers((prev) => {
-      const next = prev.map((layer) =>
-        layer.layerId === layerId
-          ? { ...layer, items: layer.items.map((item) => (item.name === itemName ? { ...item, isVisible: visible } : item)) }
-          : layer,
-      );
-      emitFilter(next);
-      return next;
-    });
+    const next = layers.map((layer) =>
+      layer.layerId === layerId
+        ? { ...layer, items: layer.items.map((item) => (item.name === itemName ? { ...item, isVisible: visible } : item)) }
+        : layer,
+    );
+    setLayers(next);
+    emitFilter(next);
   };
 
   const hasHidden = layers.some((layer) => !layer.visible || layer.items.some((item) => !item.isVisible));

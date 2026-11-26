@@ -6,6 +6,7 @@ import type { DataSourceConfig, TextPanelConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { renderTextTemplate } from './textTemplate';
+import { useTemplateValues } from '../templateValues/context';
 
 interface TextPanelProps {
   panel: TextPanelConfig;
@@ -38,15 +39,18 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
     panel.template ? panel.dataSource : undefined,
     dataSources,
   );
+  const templateValues = useTemplateValues();
 
   if (panel.template) {
     if (templateLoading) {
       return <PanelContainer title={panel.title}>Loading…</PanelContainer>;
     }
+    // A template with no `dataSource` at all (only `{{$name}}` dashboard values) has no rows to be
+    // "empty" of - render it as-is rather than falling back to `emptyContent`.
     const text =
-      (templateRows?.length ?? 0) === 0 && panel.emptyContent !== undefined
+      panel.dataSource && (templateRows?.length ?? 0) === 0 && panel.emptyContent !== undefined
         ? panel.emptyContent
-        : renderTextTemplate(panel.template, templateRows, panel.repeatTemplate ?? true);
+        : renderTextTemplate(panel.template, templateRows, panel.repeatTemplate ?? true, templateValues);
     return (
       <PanelContainer title={panel.title}>
         <div className="markdown-content">

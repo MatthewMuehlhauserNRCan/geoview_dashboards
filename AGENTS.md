@@ -43,6 +43,7 @@ src/geoview/     ALL GeoView-specific glue (cgpvTypes.ts, loadCgpv.ts, mapLifecy
 src/grid/        DashboardGrid.tsx (recursive partitioner) + layoutUtils.ts
 src/panels/      one component per panel type + PanelContainer.tsx (shared chrome) + leafRegistry.ts
 src/title/       TitleElement (dashboard-wide header) + TitlePanel (per-page strip) - NOT panels
+src/templateValues/ dashboard-wide named data values (`{{$id}}` in titles + text/cards templates)
 src/footer/      auto-generated page-switcher tabs (shown when there's >1 page)
 src/theme/       createDashboardTheme.ts (DashboardThemeConfig -> MUI theme, w/ auto text contrast)
 src/app/         DashboardApp.tsx (the actual renderer, shared by viewer + embed) + sampleConfig.ts

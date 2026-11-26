@@ -748,7 +748,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
           <TextField
             label="Template"
             placeholder={'## {{Header1_EN}}\n\n{{Text1_EN}}'}
-            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from Data source's row(s) (above). Wrap part of it in {{#Field}}...{{/Field}} to hide that whole section when Field is empty. Takes priority over Content/Content URL below."
+            helperText="Optional - markdown with {{FieldName}} placeholders, filled in from Data source's row(s) (above), and/or {{$valueId}} dashboard values (see Values in the toolbar - no Data source needed for those). Wrap part of it in {{#Field}}...{{/Field}} to hide that whole section when Field is empty. Takes priority over Content/Content URL below."
             value={leafPanel.template ?? ''}
             multiline
             minRows={3}

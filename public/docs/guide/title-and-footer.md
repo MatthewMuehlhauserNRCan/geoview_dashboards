@@ -95,6 +95,56 @@ interface PageHeadingConfig {
 
 Set per-page (`DashboardPageConfig.pageHeading`).
 
+## Data values in titles (`templateValues`)
+
+Any title text - the title element's `title`/`subtitle`, a title panel's `left`/`right`, and a
+page heading's `text` - can include values pulled from a data source. Declare each value once,
+by name, at the top level (`DashboardConfig.templateValues`, shared by every page), then
+reference it as `{{$id}}`:
+
+```ts
+interface TemplateValueConfig {
+  id: string; // letters, digits, `_` and `-` only; unique - referenced as {{$id}}
+  dataSource: string; // a DataSourceConfig id
+  aggregation?: 'first' | 'count' | 'sum' | 'avg' | 'min' | 'max'; // defaults to 'first'
+  field?: string; // required unless aggregation is 'count'
+  decimals?: number; // fixed decimal places for a numeric result; omitted = value as-is
+  listensTo?: string[]; // linking channels whose filters are applied first
+}
+```
+
+```ts
+templateValues: [
+  { id: 'siteCount', dataSource: 'cesi-layer', aggregation: 'count', listensTo: ['cesi-filter'] },
+  { id: 'avgLevel', dataSource: 'cesi-layer', aggregation: 'avg', field: 'Level', decimals: 1 },
+  { id: 'updated', dataSource: 'metadata', field: 'LastUpdated' },
+],
+titleElement: {
+  title: 'Water Quality',
+  subtitle: '{{$siteCount}} sites · average level {{$avgLevel}} · updated {{$updated}}',
+},
+```
+
+- `'first'` takes `field` from the first row, unchanged (text or number). This is most useful with a
+  data source that already returns just the one row you want (e.g. a `where=` in its URL).
+- `'count'` counts rows; `sum`/`avg`/`min`/`max` aggregate a numeric `field` across them (same
+  rules as a [stat panel](guide/panels.md#stat)).
+- `listensTo` filters the rows by those [linking](guide/linking.md) channels first, exactly like a
+  panel's own `interactions.listensTo` - so e.g. a count in the title updates as the viewer
+  filters the map/chart.
+- Values are shown exactly as the data provides them (no thousands separators, no rounding)
+  unless `decimals` is set, which fixes numeric values to that many decimal places.
+- A value is empty while its data source is loading, when there are no rows (`first`), or when
+  there's nothing numeric to aggregate (`avg`/`min`/`max`). Wrap text in
+  `{{#$id}}...{{/$id}}` to hide it entirely while the value is empty, e.g.
+  `'{{#$siteCount}}{{$siteCount}} sites · {{/$siteCount}}Updated daily'`.
+
+The same `{{$id}}` placeholders also work in a [text panel's `template`](guide/panels.md#text) and
+a cards panel's `summaryTemplate`/`detailTemplate`. The `$` is what keeps them apart from those
+templates' own `{{FieldName}}` row placeholders, so the two never collide.
+
+In the editor, manage these under **Values** in the toolbar.
+
 ## Footer (automatic, not configured)
 
 A row of tabs, one per page, letting a viewer switch between them - shown automatically whenever

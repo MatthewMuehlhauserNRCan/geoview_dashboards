@@ -569,3 +569,28 @@ fires by agency, stacked by status" - two categorical dimensions on one chart.
 - Value labels use the already-registered `chartjs-plugin-datalabels`; bar labels are hidden when
   their segment is under ~14px (measured via the value scale), mirroring how ESRI-style dashboards
   omit labels on thin stacked slivers.
+
+## 14. Template values (`{{$id}}` data values in titles/templates)
+
+- **Problem**: titles occasionally need a value from a data source, possibly several from
+  different sources. Inline `{{source:field}}` was considered and rejected: titles have no row to
+  iterate, so every reference also needs "which row / what aggregation", and that doesn't fit
+  readably inline. Renames would also have to be chased through every string.
+- **Design**: dashboard-level `templateValues: TemplateValueConfig[]`. Each entry is a named
+  reduction of one data source (`first` row's field (default), `count`, `sum`/`avg`/`min`/`max`
+  via the shared `aggregateValues`), optionally cross-filtered by `listensTo` channels (same
+  `useListenChannels` + `rowMatchesFieldFilter` path as stat/table), with optional fixed
+  `decimals`. Otherwise values are shown raw, with no locale formatting, by request.
+- **Namespace**: referenced as `{{$id}}` everywhere. The `$` prefix is resolved in
+  `textTemplate.ts`'s `lookup()` before row fields, so text/cards templates can mix their own row
+  `{{Field}}` placeholders with dashboard values without collisions (`{{#$id}}` sections work too).
+  Ids are restricted to `[A-Za-z0-9_-]` and must be unique (Zod).
+- **Runtime**: `src/templateValues/TemplateValuesProvider.tsx`, mounted in `DashboardApp` inside
+  the QueryClientProvider, renders one invisible `TemplateValueResolver` per entry (rules-of-hooks,
+  same pattern as `SourceRowsFetcher`) and publishes a `{ id: string | undefined }` map via
+  context. Values resolve dashboard-wide, so they're available on every page. Title components use
+  `useFillTemplateValues()`; text/cards panels pass `useTemplateValues()` into
+  `fillTextTemplate`/`renderTextTemplate`. "No value" (loading, no rows, nothing numeric for
+  avg/min/max) is `undefined`, not `0`, so `{{#$id}}` sections hide correctly.
+- A text panel `template` with no `dataSource` now renders against values only (`emptyContent` is
+  only used when a `dataSource` is set and returns zero rows).

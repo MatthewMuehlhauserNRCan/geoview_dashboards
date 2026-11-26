@@ -404,6 +404,11 @@ interface TextPanelConfig {
   ```
   Sections can sit side by side or nest (a differently-named section inside another), but a
   section can't nest inside ANOTHER section of the *same* name.
+- **Dashboard values**: `{{$id}}` (note the `$`) inserts one of the dashboard-wide
+  [`templateValues`](guide/title-and-footer.md#data-values-in-titles-templatevalues) instead of a
+  field from this panel's own row - e.g. a total from a *different* data source. The `$` keeps the
+  two from colliding, and `{{#$id}}...{{/$id}}` sections work the same way. A template using
+  only `{{$id}}` values doesn't need a `dataSource` at all.
 - **Line breaks**: a `template` (unlike `content`/`contentUrl`) renders every single `\n` as a
   real line break, not just a double `\n\n` (standard markdown otherwise collapses a lone
   newline into just a space, which is easy to trip over when a template's own header/value lines

@@ -30,6 +30,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
 import PaletteIcon from '@mui/icons-material/Palette';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import type { PanelConfig } from '../config/types';
 import { dashboardConfigSchema } from '../config/schema';
 import { AddPanelDialog } from './AddPanelDialog';
@@ -43,6 +44,7 @@ import { ThemeForm } from './ThemeForm';
 import { TitleElementForm } from './TitleElementForm';
 import { TitlePanelForm } from './TitlePanelForm';
 import { PageHeadingForm } from './PageHeadingForm';
+import { TemplateValuesPanel } from './TemplateValuesPanel';
 import { createDefaultPanel } from './panelDefaults';
 import { useEditorStore } from './store';
 
@@ -77,6 +79,7 @@ export function EditorApp() {
   const [dataSourcesDialogOpen, setDataSourcesDialogOpen] = useState(false);
   const [linkingDialogOpen, setLinkingDialogOpen] = useState(false);
   const [linkingHelpOpen, setLinkingHelpOpen] = useState(false);
+  const [valuesDialogOpen, setValuesDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -134,6 +137,9 @@ export function EditorApp() {
           </Button>
           <Button size="small" startIcon={<LinkIcon />} onClick={() => setLinkingDialogOpen(true)}>
             Linking
+          </Button>
+          <Button size="small" startIcon={<DataObjectIcon />} onClick={() => setValuesDialogOpen(true)}>
+            Values
           </Button>
           <Button size="small" startIcon={<PaletteIcon />} onClick={() => setThemeDialogOpen(true)}>
             Theme
@@ -327,6 +333,16 @@ export function EditorApp() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLinkingDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={valuesDialogOpen} onClose={() => setValuesDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Template values</DialogTitle>
+        <DialogContent>
+          <TemplateValuesPanel />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setValuesDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 

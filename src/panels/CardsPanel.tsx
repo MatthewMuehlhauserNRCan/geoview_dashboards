@@ -10,7 +10,8 @@ import type { CardsPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import type { DataSourceRecord } from '../dataSources/types';
-import { fillTextTemplate, isEmptyValue } from './textTemplate';
+import { fillTextTemplate, isEmptyValue, type TemplateValues } from './textTemplate';
+import { useTemplateValues } from '../templateValues/context';
 
 interface CardsPanelProps {
   panel: CardsPanelConfig;
@@ -40,14 +41,14 @@ function resolveManualCard(panel: CardsPanelConfig, index: number): ResolvedCard
   };
 }
 
-function resolveRowCard(panel: CardsPanelConfig, row: DataSourceRecord, index: number): ResolvedCard {
+function resolveRowCard(panel: CardsPanelConfig, row: DataSourceRecord, index: number, values: TemplateValues): ResolvedCard {
   const title = String(row[panel.titleField!] ?? '');
   const style = panel.cardStyles?.[title];
   return {
     key: `${title}-${index}`,
     title,
-    summary: panel.summaryTemplate ? fillTextTemplate(panel.summaryTemplate, row) : undefined,
-    detail: panel.detailTemplate ? fillTextTemplate(panel.detailTemplate, row) : undefined,
+    summary: panel.summaryTemplate ? fillTextTemplate(panel.summaryTemplate, row, values) : undefined,
+    detail: panel.detailTemplate ? fillTextTemplate(panel.detailTemplate, row, values) : undefined,
     icon: (panel.iconField ? (row[panel.iconField] as string | undefined) : undefined) ?? style?.icon ?? panel.defaultIcon,
     color: (panel.colorField ? (row[panel.colorField] as string | undefined) : undefined) ?? style?.color ?? panel.defaultColor,
   };
@@ -72,6 +73,7 @@ export function CardsPanel({ panel, dataSources }: CardsPanelProps) {
   // discarded (same "manual wins" precedent as TextPanel's template-vs-contentUrl).
   const isManual = Boolean(panel.cards?.length);
   const { data, isLoading } = useDataSource(isManual ? undefined : panel.dataSource, dataSources);
+  const templateValues = useTemplateValues();
 
   if (!isManual && isLoading) {
     return <PanelContainer title={panel.title}>Loading…</PanelContainer>;
@@ -79,7 +81,7 @@ export function CardsPanel({ panel, dataSources }: CardsPanelProps) {
 
   const cards = isManual
     ? panel.cards!.map((_, index) => resolveManualCard(panel, index))
-    : (data ?? []).filter((row) => rowIsIncluded(panel, row)).map((row, index) => resolveRowCard(panel, row, index));
+    : (data ?? []).filter((row) => rowIsIncluded(panel, row)).map((row, index) => resolveRowCard(panel, row, index, templateValues));
 
   if (cards.length === 0 && panel.emptyText) {
     return <PanelContainer title={panel.title}>{panel.emptyText}</PanelContainer>;

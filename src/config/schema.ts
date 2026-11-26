@@ -374,6 +374,26 @@ const dashboardThemeSchema = z.object({
   textColor: z.string().optional(),
 });
 
+const templateValueSchema = z
+  .object({
+    id: z.string().regex(/^[A-Za-z0-9_-]+$/, 'id may only contain letters, digits, `_` and `-`'),
+    dataSource: z.string(),
+    aggregation: z.enum(['first', 'count', 'sum', 'avg', 'min', 'max']).optional(),
+    field: z.string().optional(),
+    decimals: z.number().int().min(0).max(20).optional(),
+    listensTo: z.array(z.string()).optional(),
+  })
+  .refine((value) => value.aggregation === 'count' || Boolean(value.field), {
+    message: 'template value requires `field` unless aggregation is `count`',
+    path: ['field'],
+  });
+
+const templateValuesSchema = z
+  .array(templateValueSchema)
+  .refine((values) => new Set(values.map((value) => value.id)).size === values.length, {
+    message: 'template value ids must be unique',
+  });
+
 export const dashboardConfigSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -382,6 +402,7 @@ export const dashboardConfigSchema = z.object({
   pages: z.array(dashboardPageSchema),
   dataSources: z.array(dataSourceSchema),
   linking: linkingSchema.optional(),
+  templateValues: templateValuesSchema.optional(),
 });
 
 export function parseDashboardConfig(input: unknown) {

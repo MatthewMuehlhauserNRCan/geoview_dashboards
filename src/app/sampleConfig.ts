@@ -67,13 +67,25 @@ export const sampleDashboardConfig: DashboardConfig = {
       },
     ],
   },
+  // Named values usable as `{{$id}}` in any title text or text/cards template - this one reacts to
+  // the same filters as the chart/table (both channels), like a stat panel would.
+  templateValues: [
+    {
+      id: "siteCount",
+      dataSource: "cesi-layer",
+      aggregation: "count",
+      listensTo: ["cesi-filter", "cesi-legend-filter"],
+    },
+  ],
   pages: [
     {
       id: "main",
       label: "Dashboard",
       titlePanel: {
         left: "Example Dashboard Title",
-        right: "Updated daily",
+        // `{{$siteCount}}` comes from `templateValues` below; the `{{#$siteCount}}` section hides
+        // the whole phrase until the map layer has loaded.
+        right: "{{#$siteCount}}{{$siteCount}} sites shown · {{/$siteCount}}Updated daily",
       },
       grid: { columns: 4, rows: 3 },
       panels: [

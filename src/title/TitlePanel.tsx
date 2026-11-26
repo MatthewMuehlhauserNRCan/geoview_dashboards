@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import type { TitlePanelConfig } from '../config/types';
+import { useFillTemplateValues } from '../templateValues/context';
 import { useResizableHeight } from './useResizableHeight';
 
 interface TitlePanelProps {
@@ -13,17 +14,18 @@ export function TitlePanel({ config }: TitlePanelProps) {
   const { height, containerRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp, onHandleKeyDown } =
     useResizableHeight(32);
   const background = config.backgroundColor ?? 'primary.main';
+  const fill = useFillTemplateValues();
 
   return (
     <Box ref={containerRef} sx={{ flex: '0 0 auto', width: '100%', display: 'flex', flexDirection: 'column' }} style={{ height }}>
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', width: '100%', bgcolor: background, color: 'primary.contrastText' }}>
-        <Box sx={{ flex: 1, minWidth: 0, px: 2 }}>{config.left}</Box>
+        <Box sx={{ flex: 1, minWidth: 0, px: 2 }}>{config.left && fill(config.left)}</Box>
         {config.image && (
           <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', px: 2 }}>
             <img src={config.image.src} alt={config.image.alt ?? ''} style={{ height: '100%', maxHeight: 48, display: 'block' }} />
           </Box>
         )}
-        <Box sx={{ flex: 1, minWidth: 0, px: 2, textAlign: 'right' }}>{config.right}</Box>
+        <Box sx={{ flex: 1, minWidth: 0, px: 2, textAlign: 'right' }}>{config.right && fill(config.right)}</Box>
       </Box>
       <Box
         role="separator"

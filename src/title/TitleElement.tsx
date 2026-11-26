@@ -23,6 +23,7 @@ import { setChannelField } from '../linking/useChannel';
 import type { FieldFilterValue } from '../linking/rowFilter';
 import { buildFilterExpression } from '../map/filterExpression';
 import { getMapHandle } from '../map/registry';
+import { useFillTemplateValues } from '../templateValues/context';
 
 interface TitleElementProps {
   config: TitleElementConfig;
@@ -39,6 +40,8 @@ export function TitleElement({ config, dataSources }: TitleElementProps) {
   // component state, not derived from the channels themselves, since two options could coincide
   // on the same values - this is the source of truth for which one is considered selected.
   const [activeOptionId, setActiveOptionId] = useState<string | undefined>();
+  const fill = useFillTemplateValues();
+  const subtitle = config.subtitle ? fill(config.subtitle) : undefined;
 
   // Selecting an option clears every OTHER option's configured values first (so a stale
   // selection from a previously-active option can't linger), then applies the clicked option's
@@ -69,11 +72,11 @@ export function TitleElement({ config, dataSources }: TitleElementProps) {
         )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h6" noWrap component="div">
-            {config.title}
+            {fill(config.title)}
           </Typography>
-          {config.subtitle && (
+          {subtitle && (
             <Typography variant="body2" noWrap sx={{ opacity: 0.85 }}>
-              {config.subtitle}
+              {subtitle}
             </Typography>
           )}
         </Box>
