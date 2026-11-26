@@ -10,7 +10,7 @@ import type { CardsPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import type { DataSourceRecord } from '../dataSources/types';
-import { fillTextTemplate } from './textTemplate';
+import { fillTextTemplate, isEmptyValue } from './textTemplate';
 
 interface CardsPanelProps {
   panel: CardsPanelConfig;
@@ -53,6 +53,20 @@ function resolveRowCard(panel: CardsPanelConfig, row: DataSourceRecord, index: n
   };
 }
 
+// Whether a `dataSource` row should become a card at all - checked BEFORE `resolveRowCard`, so an
+// excluded row never even reaches templating. `requireFields` drops a row missing any of the
+// listed fields (e.g. a mostly-null placeholder row); `excludeValues` drops a row whose field
+// exactly matches one of a known list of values to hide outright.
+function rowIsIncluded(panel: CardsPanelConfig, row: DataSourceRecord): boolean {
+  if (panel.requireFields?.some((field) => isEmptyValue(row[field]))) return false;
+  if (panel.excludeValues) {
+    for (const [field, values] of Object.entries(panel.excludeValues)) {
+      if (values.some((value) => String(value) === String(row[field]))) return false;
+    }
+  }
+  return true;
+}
+
 export function CardsPanel({ panel, dataSources }: CardsPanelProps) {
   // A non-empty `cards` list takes priority - no point fetching a data source that'd just be
   // discarded (same "manual wins" precedent as TextPanel's template-vs-contentUrl).
@@ -65,7 +79,7 @@ export function CardsPanel({ panel, dataSources }: CardsPanelProps) {
 
   const cards = isManual
     ? panel.cards!.map((_, index) => resolveManualCard(panel, index))
-    : (data ?? []).map((row, index) => resolveRowCard(panel, row, index));
+    : (data ?? []).filter((row) => rowIsIncluded(panel, row)).map((row, index) => resolveRowCard(panel, row, index));
 
   if (cards.length === 0 && panel.emptyText) {
     return <PanelContainer title={panel.title}>{panel.emptyText}</PanelContainer>;
@@ -95,6 +109,11 @@ function gridTemplateColumns(columns: number | undefined): string {
   return `repeat(auto-fill, minmax(max(200px, calc((100% - ${(columns - 1) * GRID_GAP_PX}px) / ${columns})), 1fr))`;
 }
 
+const ICON_MAX_HEIGHT = 200;
+// Every card's fixed total height - content past this scrolls inside the summary area instead of
+// growing the card (see CardItem).
+const CARD_HEIGHT = ICON_MAX_HEIGHT * 2.5;
+
 function CardItem({ card }: { card: ResolvedCard }) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -114,14 +133,18 @@ function CardItem({ card }: { card: ResolvedCard }) {
         borderColor: 'divider',
         borderRadius: `${cardRadius}px`,
         bgcolor: 'background.paper',
-        // A floor so a card with little body content (e.g. just "N/A") still reads as a real
-        // card, not a squished one - any leftover space below the content stays blank, same as
-        // the reference design.
-        minHeight: 320,
-        // The front (below, normal flow) is what sets this card's actual height; the back is
-        // absolutely positioned over it and never participates in that sizing - `overflow:
-        // hidden` here clips its slide-in so hovering/expanding never grows this card (or, since
-        // a CSS Grid row sizes to its tallest cell, the whole row of cards it shares).
+        // A single fixed height for EVERY card (not just a per-card minimum) - otherwise a CSS
+        // Grid row stretches every card in it to match whichever one has the most content, so
+        // different rows end up different heights depending on what happened to land in them.
+        // Content past this fixed size scrolls inside the summary area below, rather than
+        // growing the card.
+        height: CARD_HEIGHT,
+        display: 'flex',
+        flexDirection: 'column',
+        // The front (below) is laid out as a flex column so the header band keeps its own
+        // natural size while the summary area fills/scrolls whatever's left; the back is
+        // absolutely positioned over the whole thing and never participates in that sizing -
+        // `overflow: hidden` here clips its slide-in so hovering/expanding never grows this card.
         overflow: 'hidden',
         ...(canFlip && { '&:hover .card-back': { transform: 'translateY(0)' } }),
       }}
@@ -155,6 +178,7 @@ function CardItem({ card }: { card: ResolvedCard }) {
           card with no image shows the title as text in the band instead. */}
       <Box
         sx={{
+          flex: '0 0 auto',
           p: 3,
           textAlign: 'center',
           bgcolor: color,
@@ -166,13 +190,21 @@ function CardItem({ card }: { card: ResolvedCard }) {
         }}
       >
         {card.icon ? (
-          <Box component="img" src={card.icon} alt="" sx={{ maxWidth: '55%', maxHeight: 200, display: 'block', mx: 'auto' }} />
+          <Box
+            component="img"
+            src={card.icon}
+            alt=""
+            sx={{ maxWidth: '55%', maxHeight: ICON_MAX_HEIGHT, display: 'block', mx: 'auto' }}
+          />
         ) : (
           <Box sx={{ fontWeight: 'bold' }}>{card.title}</Box>
         )}
       </Box>
       {card.summary && (
-        <Box className="markdown-content" sx={{ p: 2.5 }}>
+        // No scrollbar here - overflowing text just clips, since hovering/tapping the card to
+        // read more would immediately flip to the back anyway (which shows the full summary,
+        // unclipped), making a scrollbar on the front redundant.
+        <Box className="markdown-content" sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', p: 2.5 }}>
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{card.summary}</ReactMarkdown>
         </Box>
       )}
@@ -180,7 +212,7 @@ function CardItem({ card }: { card: ResolvedCard }) {
       {/* Back: slides up to cover the front - the title re-appears here as plain text (the image
           itself isn't shown anymore), followed by the summary again and the detail content. Its
           own `overflow-y: auto` scrolls internally, rather than growing the card, if it's taller
-          than the front (which is what actually determines this card's fixed height). */}
+          than the card's own fixed `CARD_HEIGHT`. */}
       {canFlip && (
         <Box
           className="card-back"

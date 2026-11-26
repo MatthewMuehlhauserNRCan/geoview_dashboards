@@ -174,6 +174,8 @@ const cardsPanelFields = z
     cards: z.array(cardEntrySchema).optional(),
     columns: z.number().positive().optional(),
     titleField: z.string().optional(),
+    requireFields: z.array(z.string()).optional(),
+    excludeValues: z.record(z.string(), z.array(z.union([z.string(), z.number()]))).optional(),
     summaryTemplate: z.string().optional(),
     detailTemplate: z.string().optional(),
     iconField: z.string().optional(),

@@ -48,6 +48,7 @@ import { ChartSourcesDialog } from './ChartSourcesDialog';
 import { ChartColorsDialog } from './ChartColorsDialog';
 import { TableSourcesDialog } from './TableSourcesDialog';
 import { CardStylesDialog } from './CardStylesDialog';
+import { ExcludeValuesDialog } from './ExcludeValuesDialog';
 import { generateId } from './idUtils';
 
 interface MapPanelOption {
@@ -78,7 +79,8 @@ interface LeafPanelFieldsProps {
   mapPanelOptions: MapPanelOption[];
   onChange: (updater: (panel: LeafPanelConfig) => LeafPanelConfig) => void;
 }
-
+
+
 function parsePositiveInt(value: string): number | undefined {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
@@ -98,6 +100,7 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
   const [chartColorsDialogOpen, setChartColorsDialogOpen] = useState(false);
   const [tableSourcesDialogOpen, setTableSourcesDialogOpen] = useState(false);
   const [cardStylesDialogOpen, setCardStylesDialogOpen] = useState(false);
+  const [excludeValuesDialogOpen, setExcludeValuesDialogOpen] = useState(false);
 
   const commitConfigText = () => {
     try {
@@ -1039,6 +1042,44 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
             disabled={Boolean(leafPanel.cards?.length)}
             onChange={(e) => onChange((p) => (p.type === 'cards' ? { ...p, titleField: e.target.value || undefined } : p))}
           />
+          <TextField
+            label="Require fields (comma-separated)"
+            helperText="Optional - only rows where EVERY one of these fields has a real value become a card (e.g. hide a mostly-blank placeholder row until its real content field is populated). Ignored while Manual cards above are set."
+            value={(leafPanel.requireFields ?? []).join(', ')}
+            fullWidth
+            size="small"
+            disabled={Boolean(leafPanel.cards?.length)}
+            onChange={(e) => {
+              const fields = e.target.value
+                .split(',')
+                .map((f) => f.trim())
+                .filter(Boolean);
+              onChange((p) => (p.type === 'cards' ? { ...p, requireFields: fields.length ? fields : undefined } : p));
+            }}
+          />
+          <Box>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DatasetIcon />}
+              disabled={Boolean(leafPanel.cards?.length)}
+              onClick={() => setExcludeValuesDialogOpen(true)}
+            >
+              Exclude specific values
+              {leafPanel.excludeValues && Object.keys(leafPanel.excludeValues).length
+                ? ` (${Object.keys(leafPanel.excludeValues).length})`
+                : ''}
+            </Button>
+            <ExcludeValuesDialog
+              key={String(excludeValuesDialogOpen)}
+              open={excludeValuesDialogOpen}
+              onClose={() => setExcludeValuesDialogOpen(false)}
+              excludeValues={leafPanel.excludeValues ?? {}}
+              onChange={(next) =>
+                onChange((p) => (p.type === 'cards' ? { ...p, excludeValues: Object.keys(next).length ? next : undefined } : p))
+              }
+            />
+          </Box>
           <TextField
             label="Summary template"
             placeholder={'**Activation Level**\n{{ActivationLevel}}'}

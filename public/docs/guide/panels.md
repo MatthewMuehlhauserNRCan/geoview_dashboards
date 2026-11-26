@@ -506,6 +506,8 @@ interface CardsPanelConfig {
   columns?: number; // cards per row on wide screens; omit for a fully responsive auto-fit grid
   // required (along with dataSource) when `cards` above is unset/empty:
   titleField?: string; // row field used as each card's title, and the key for cardStyles below
+  requireFields?: string[]; // only rows where EVERY one of these fields has a real value become a card
+  excludeValues?: Record<string, (string | number)[]>; // rows matching any listed value for a field are hidden entirely
   summaryTemplate?: string; // markdown w/ {{FieldName}} placeholders, shown under the header on BOTH faces
   detailTemplate?: string; // markdown shown on the back, under the title; omit for no flip at all
   iconField?: string; // row field holding the card's full header image URL, if the data source provides one
@@ -531,6 +533,12 @@ interface CardsPanelConfig {
   one shared fetch. `summaryTemplate`/`detailTemplate` use the exact same `{{FieldName}}` markdown
   templating as a [text panel's `template`](#text) - INCLUDING `{{#FieldName}}...{{/FieldName}}`
   conditional sections - filled in per-row.
+- **Excluding rows** (data-driven mode): `requireFields` drops a row entirely if it's missing a
+  real value for ANY of the listed fields (e.g. a mostly-null placeholder row - just a title,
+  everything else blank - is hidden until its real content field is actually populated, then
+  appears automatically). `excludeValues` drops a row whose field exactly matches one of a known
+  list of values (e.g. hide one specific row by its exact title). Both apply independently - a row
+  failing either check is hidden.
 - **Icon/color** (data-driven mode): checked in this order per card: (1) `iconField`/`colorField`
   read straight from that row, if the data source happens to provide them; (2)
   `cardStyles[titleField's value]`, an author-maintained map for data sources that don't have

@@ -256,6 +256,14 @@ export interface CardsPanelConfig extends BasePanelConfig {
   // field whose value becomes each card's title, and the key used to look up `cardStyles` -
   // required (along with `dataSource`) when `cards` above is unset/empty.
   titleField?: string;
+  // only rows where EVERY one of these fields has a real (non-empty) value become a card - e.g.
+  // a mostly-null placeholder row (just a title, everything else blank) can be hidden until its
+  // real content field is actually populated. Ignored when `cards` is set.
+  requireFields?: string[];
+  // rows excluded entirely when a given field's value matches one of the listed values exactly
+  // (compared as strings) - e.g. filter out one specific known row by its title. Keyed by field
+  // name. Ignored when `cards` is set.
+  excludeValues?: Record<string, (string | number)[]>;
   // markdown (same {{FieldName}} placeholders as a text panel's `template`) always shown under
   // the title, filled in from that row - e.g. a short status line. Ignored when `cards` is set
   // (use each entry's own `summary` instead).

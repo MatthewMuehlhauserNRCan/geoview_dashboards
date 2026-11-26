@@ -2,7 +2,7 @@ import type { DataSourceRecord } from '../dataSources/types';
 
 // A field counts as "empty" for `{{#Field}}...{{/Field}}` purposes if it's missing, null, or a
 // blank/whitespace-only string - a real `0` or `false` value still counts as present.
-function isEmptyValue(value: unknown): boolean {
+export function isEmptyValue(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 }
 
