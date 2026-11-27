@@ -32,11 +32,53 @@
   background: var(--dashboard-divider-hover-color, rgba(25, 118, 210, 0.25));
 }
 
+/* The faint hover tint above isn't a visible-enough keyboard focus indicator (WCAG 2.4.7) - a
+   focused divider is filled solid with the theme's primary color instead. */
+.grid-divider:focus-visible {
+  background: var(--dashboard-focus-color, #1976d2);
+  outline: none;
+}
+
 .markdown-content {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
   overflow-wrap: break-word;
+}
+
+/* Markdown headings are re-leveled to fit the dashboard's heading outline (markdownHeadings.tsx) -
+   these keep each one at its ORIGINAL markdown level's browser-default size regardless of which
+   <hN> it actually renders as. Must stay above the :first-child/:last-child margin resets below
+   (same specificity - the later rule wins). */
+.markdown-content .md-h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+  line-height: 1;
+}
+
+.markdown-content .md-h2 {
+  font-size: 1.5em;
+  margin: 0.83em 0;
+}
+
+.markdown-content .md-h3 {
+  font-size: 1.17em;
+  margin: 1em 0;
+}
+
+.markdown-content .md-h4 {
+  font-size: 1em;
+  margin: 1.33em 0;
+}
+
+.markdown-content .md-h5 {
+  font-size: 0.83em;
+  margin: 1.67em 0;
+}
+
+.markdown-content .md-h6 {
+  font-size: 0.67em;
+  margin: 2.33em 0;
 }
 
 .markdown-content > :first-child {
@@ -45,10 +87,6 @@
 
 .markdown-content > :last-child {
   margin-bottom: 0;
-}
-
-.markdown-content h1 {
-  line-height: 1;
 }
 
 .markdown-content img {

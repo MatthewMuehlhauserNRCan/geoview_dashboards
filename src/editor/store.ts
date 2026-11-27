@@ -56,7 +56,7 @@ interface EditorState {
   selectPanel: (panelId: string | undefined) => void;
   setPreviewMapPanelId: (panelId: string | undefined) => void;
 
-  updateMeta: (fields: Partial<Pick<DashboardConfig, 'id' | 'title'>>) => void;
+  updateMeta: (fields: Partial<Pick<DashboardConfig, 'id' | 'title' | 'headingLevel'>>) => void;
   setTitleElement: (titleElement: TitleElementConfig | undefined) => void;
   setTitlePanel: (pageId: string, titlePanel: TitlePanelConfig | undefined) => void;
   // Copies `pageId`'s own titlePanel onto every other page - for content that's meant to be

@@ -44,6 +44,18 @@ export function PageHeadingForm({ value, onChange }: PageHeadingFormProps) {
               <MenuItem value="right">Right</MenuItem>
             </Select>
           </FormControl>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Text size</InputLabel>
+            <Select
+              label="Text size"
+              value={config.size ?? 'medium'}
+              onChange={(e) => onChange({ ...config, size: e.target.value as PageHeadingConfig['size'] })}
+            >
+              <MenuItem value="small">Small</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="large">Large</MenuItem>
+            </Select>
+          </FormControl>
           <TextField
             label="Text color"
             value={config.textColor ?? ''}

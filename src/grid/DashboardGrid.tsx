@@ -1,4 +1,5 @@
 import { Cell, Grid, Gridline } from 'react-resizable-panels';
+import { columnGridlineRef, rowGridlineRef } from './gridlineA11y';
 import type { DataSourceConfig, GridConfig, GridPanel } from '../config/types';
 import { panelRegistry } from '../panels';
 import { PanelErrorBoundary } from '../panels/PanelErrorBoundary';
@@ -188,12 +189,21 @@ function FlatGridLeaf({
         );
       })}
       {columnGridlines.map((line, index) => (
-        <Gridline key={`col-${index}`} className="grid-divider" type="column" column={line.column} row={line.row} rowSpan={line.rowSpan} />
+        <Gridline
+          key={`col-${index}`}
+          className="grid-divider"
+          elementRef={columnGridlineRef}
+          type="column"
+          column={line.column}
+          row={line.row}
+          rowSpan={line.rowSpan}
+        />
       ))}
       {rowGridlines.map((line, index) => (
         <Gridline
           key={`row-${index}`}
           className="grid-divider"
+          elementRef={rowGridlineRef}
           type="row"
           row={line.row}
           column={line.column}
@@ -241,9 +251,9 @@ function PartitionGrid({ node, config }: { node: PartitionNode; config: GridPage
       ))}
       {children.slice(0, -1).map((_, index) =>
         isColumn ? (
-          <Gridline key={`sep-${index}`} className="grid-divider" type="column" column={index + 1} row={0} rowSpan={1} />
+          <Gridline key={`sep-${index}`} className="grid-divider" elementRef={columnGridlineRef} type="column" column={index + 1} row={0} rowSpan={1} />
         ) : (
-          <Gridline key={`sep-${index}`} className="grid-divider" type="row" row={index + 1} column={0} columnSpan={1} />
+          <Gridline key={`sep-${index}`} className="grid-divider" elementRef={rowGridlineRef} type="row" row={index + 1} column={0} columnSpan={1} />
         )
       )}
     </Grid>

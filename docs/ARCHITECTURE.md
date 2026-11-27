@@ -594,3 +594,37 @@ fires by agency, stacked by status" - two categorical dimensions on one chart.
   avg/min/max) is `undefined`, not `0`, so `{{#$id}}` sections hide correctly.
 - A text panel `template` with no `dataSource` now renders against values only (`emptyContent` is
   only used when a `dataSource` is set and returns zero rows).
+
+## 15. Accessibility pass (WCAG 2.1 AA, viewer/embed)
+
+- **Headings**: title element, page heading and panel titles render as real `<hN>`, previously
+  styled `div`/`span`s. Semantic level is decoupled from visual size (MUI `component` vs `variant`).
+  `DashboardConfig.headingLevel` (default 1) sets the top level for embeds into a host page with
+  its own `<h1>`. `DashboardApp` steps down only past what's actually rendered (title element ->
+  page heading -> panels), so no level is skipped, and seeds `HeadingLevelContext`
+  (`src/common/headingLevel.ts`). A titled `PanelContainer` re-provides `level + 1`, so tab-panel
+  children and card titles nest naturally. Markdown `#` headings in text/cards panels are
+  re-leveled via `useMarkdownHeadings` (`src/panels/markdownHeadings.tsx`), with `.md-hN` classes
+  in `App.css` keeping their original browser-default size.
+- **Page heading size**: `PageHeadingConfig.size` (`small`/`medium`/`large` -> `subtitle1`/`h6`/
+  `h5`) is visual only. The default moved to `medium`, since the old body-sized text was too small.
+- **Charts**: category charts are now keyboard-operable. The canvas is focusable; arrows/Home/End
+  drive Chart.js `setActiveElements` + the tooltip and announce values via an `aria-live` region;
+  Enter/Space toggles selection, same as a click. A visually-hidden `ChartDataTable` provides a
+  text alternative. react-chartjs-2 forces `role="img"` on the canvas, which hides canvas fallback
+  content, so the table is a sibling instead.
+- **Grid dividers**: react-resizable-panels' `Gridline` has no name prop, so `gridlineA11y.ts` sets
+  `aria-label` through `elementRef`. A solid primary-color `:focus-visible` fill replaces the faint
+  hover tint as the focus indicator.
+- **Ids**: the skip-link target and the page-tab `tabpanel` wiring use `useId()`, since the embed
+  can mount several dashboards on one page. Footer tabs now `aria-controls` the content area,
+  which becomes their `tabpanel`. The `tab` panel type is wired the same way.
+- **Contrast**: `contrastTextFor()` (`src/common/a11y.ts`) picks black/white text for author-set
+  title element / title panel / page heading / card backgrounds, falling back on unparseable
+  (named) colors instead of throwing.
+- **Cards**: the flip button stays in the tab order on hover devices (hidden only until
+  hovered/focused). When a card can flip, the front is `inert`, because the back repeats all of it.
+- Smaller fixes: map container `role="region"` (its `aria-label` was ignored on a generic div),
+  legend `List` as a `div` with per-layer `role="group"` (it was a `ul` without `li`s), options
+  menu `menuitemradio`/`aria-checked`, a name for the full-screen panel dialog, "opens in a new
+  tab" hints on hamburger links, and a standalone-viewer `document.title`.

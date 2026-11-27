@@ -12,6 +12,9 @@ import { useDataSource } from '../dataSources/useDataSource';
 import type { DataSourceRecord } from '../dataSources/types';
 import { fillTextTemplate, isEmptyValue, type TemplateValues } from './textTemplate';
 import { useTemplateValues } from '../templateValues/context';
+import { contrastTextFor } from '../common/a11y';
+import { headingTag, useHeadingLevel } from '../common/headingLevel';
+import { useMarkdownHeadings } from './markdownHeadings';
 
 interface CardsPanelProps {
   panel: CardsPanelConfig;
@@ -118,6 +121,9 @@ const CARD_HEIGHT = ICON_MAX_HEIGHT * 2.5;
 
 function CardItem({ card }: { card: ResolvedCard }) {
   const theme = useTheme();
+  const level = useHeadingLevel();
+  // Markdown in the summary/detail sits one level below the card's own title.
+  const markdownHeadings = useMarkdownHeadings(level + 1);
   const [expanded, setExpanded] = useState(false);
   const color = card.color ?? theme.palette.primary.main;
   // Nothing to reveal (no supplied header image to swap away, no extra detail text) - just show
@@ -148,13 +154,20 @@ function CardItem({ card }: { card: ResolvedCard }) {
         // absolutely positioned over the whole thing and never participates in that sizing -
         // `overflow: hidden` here clips its slide-in so hovering/expanding never grows this card.
         overflow: 'hidden',
-        ...(canFlip && { '&:hover .card-back': { transform: 'translateY(0)' } }),
+        // Hover reveals the back for pointer users; keyboard users toggle it with the flip button,
+        // and focus landing on anything ON the back (e.g. a link) reveals it too, so a focused
+        // element never sits invisibly off-card.
+        ...(canFlip && {
+          '&:hover .card-back, & .card-back:focus-within': { transform: 'translateY(0)' },
+          '&:hover .card-flip-button': { opacity: 1 },
+        }),
       }}
     >
       {canFlip && (
         <IconButton
+          className="card-flip-button"
           size="small"
-          aria-label={expanded ? 'Show the front of this card' : 'Show more about this card'}
+          aria-label={expanded ? `Show the front of the ${card.title} card` : `Show more about ${card.title}`}
           aria-expanded={expanded}
           onClick={() => setExpanded((prev) => !prev)}
           sx={{
@@ -164,9 +177,10 @@ function CardItem({ card }: { card: ResolvedCard }) {
             zIndex: 2,
             bgcolor: 'background.paper',
             '&:hover': { bgcolor: 'action.hover' },
-            // A real pointer device already reveals the back on hover alone - this tap target
-            // only matters where hover doesn't exist (touch).
-            '@media (hover: hover)': { display: 'none' },
+            // A real pointer device already reveals the back on hover alone, so the button stays
+            // hidden there until hovered/focused - but still in the tab order, since a keyboard
+            // user on that same device has no hover. Touch devices (no hover) always show it.
+            '@media (hover: hover)': { opacity: 0, '&:focus-visible': { opacity: 1 } },
           }}
         >
           {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
@@ -177,14 +191,18 @@ function CardItem({ card }: { card: ResolvedCard }) {
           header image IS the card's title/branding, assumed to have a transparent background, so
           it sits smaller/centered within the band rather than stretched edge-to-edge (that's also
           what makes the band's own color visible well beyond the image's own narrower width). A
-          card with no image shows the title as text in the band instead. */}
+          card with no image shows the title as text in the band instead. When the card can flip,
+          the back repeats everything on the front, so the front is made `inert` (out of the tab
+          order and the accessibility tree) to avoid reading/tabbing through it all twice - the back
+          is what keyboard and screen reader users get. */}
       <Box
+        inert={canFlip || undefined}
         sx={{
           flex: '0 0 auto',
           p: 3,
           textAlign: 'center',
           bgcolor: color,
-          color: theme.palette.getContrastText(color),
+          color: contrastTextFor(theme, color, theme.palette.primary.contrastText),
           borderTopLeftRadius: `${cardRadius}px`,
           borderTopRightRadius: `${cardRadius}px`,
           borderBottomLeftRadius: `${cardRadius}px`,
@@ -199,15 +217,21 @@ function CardItem({ card }: { card: ResolvedCard }) {
             sx={{ maxWidth: '55%', maxHeight: ICON_MAX_HEIGHT, display: 'block', mx: 'auto' }}
           />
         ) : (
-          <Box sx={{ fontWeight: 'bold' }}>{card.title}</Box>
+          <Box component={headingTag(level)} sx={{ m: 0, fontSize: 'inherit', fontWeight: 'bold' }}>
+            {card.title}
+          </Box>
         )}
       </Box>
       {card.summary && (
         // No scrollbar here - overflowing text just clips, since hovering/tapping the card to
         // read more would immediately flip to the back anyway (which shows the full summary,
         // unclipped), making a scrollbar on the front redundant.
-        <Box className="markdown-content" sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', p: 2.5 }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{card.summary}</ReactMarkdown>
+        <Box
+          className="markdown-content"
+          inert={canFlip || undefined}
+          sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', p: 2.5 }}
+        >
+          <ReactMarkdown components={markdownHeadings} remarkPlugins={[remarkGfm, remarkBreaks]}>{card.summary}</ReactMarkdown>
         </Box>
       )}
 
@@ -225,20 +249,23 @@ function CardItem({ card }: { card: ResolvedCard }) {
             bgcolor: 'background.paper',
             transform: expanded ? 'translateY(0)' : 'translateY(100%)',
             transition: 'transform 0.3s ease',
+            '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
           }}
         >
           {/* One shared padding block, with a small gap BETWEEN sections instead of each section
               having its own full padding (which doubled up into an overly large gap between them). */}
           <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ textAlign: 'center', fontWeight: 'bold' }}>{card.title}</Box>
+            <Box component={headingTag(level)} sx={{ m: 0, fontSize: 'inherit', textAlign: 'center', fontWeight: 'bold' }}>
+              {card.title}
+            </Box>
             {card.summary && (
               <Box className="markdown-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{card.summary}</ReactMarkdown>
+                <ReactMarkdown components={markdownHeadings} remarkPlugins={[remarkGfm, remarkBreaks]}>{card.summary}</ReactMarkdown>
               </Box>
             )}
             {card.detail && (
               <Box className="markdown-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{card.detail}</ReactMarkdown>
+                <ReactMarkdown components={markdownHeadings} remarkPlugins={[remarkGfm, remarkBreaks]}>{card.detail}</ReactMarkdown>
               </Box>
             )}
           </Box>

@@ -442,6 +442,13 @@ export interface DashboardConfig {
   // of `panels` never has to account for it) - see src/title/. Shared across every page, unlike
   // `titlePanel` which is authored per-page (DashboardPageConfig.titlePanel).
   titleElement?: TitleElementConfig;
+  // HTML heading level (1-6, default 1) of the dashboard's TOP heading - the title element if
+  // present, otherwise the page heading, otherwise panel titles. Everything below it steps down
+  // one level each (title element -> page heading -> panel titles -> panels inside a tab panel),
+  // skipping any that aren't present so no level is ever skipped. Purely semantic (screen readers'
+  // heading navigation) - visual sizes don't change. Set e.g. 2 when embedding into a host page
+  // that already has its own <h1>.
+  headingLevel?: number;
   // Dashboard-wide, like `titleElement` - not authored per-page.
   theme?: DashboardThemeConfig;
   pages: DashboardPageConfig[];
@@ -563,6 +570,9 @@ export interface TitlePanelConfig {
 export interface PageHeadingConfig {
   text: string;
   align?: 'left' | 'center' | 'right';
+  // Visual text size only (the heading's semantic level is set by DashboardConfig.headingLevel).
+  // Defaults to 'medium'.
+  size?: 'small' | 'medium' | 'large';
   textColor?: string;
   backgroundColor?: string;
 }

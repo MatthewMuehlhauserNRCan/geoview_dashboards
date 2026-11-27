@@ -12,6 +12,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  MenuItem,
   Stack,
   Tab,
   Tabs,
@@ -365,6 +366,25 @@ export function EditorApp() {
             dataSources={config.dataSources}
             onChange={setTitleElement}
           />
+          <TextField
+            select
+            label="Top heading level"
+            helperText="Use h2 or lower when embedding into a page that already has its own h1. Doesn't change text size."
+            value={config.headingLevel ?? 1}
+            size="small"
+            fullWidth
+            sx={{ mt: 3 }}
+            onChange={(e) => {
+              const level = Number(e.target.value);
+              updateMeta({ headingLevel: level === 1 ? undefined : level });
+            }}
+          >
+            {[1, 2, 3, 4].map((level) => (
+              <MenuItem key={level} value={level}>
+                h{level}
+              </MenuItem>
+            ))}
+          </TextField>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setHeaderDialogOpen(false)}>Close</Button>

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { alpha, darken, getLuminance, lighten, useTheme } from '@mui/material/styles';
-import { Button, FormControlLabel, Stack, Switch, Typography } from '@mui/material';
+import { Box, Button, FormControlLabel, Stack, Switch, Typography } from '@mui/material';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -21,6 +21,7 @@ import ChartDataLabels, { type Context as DataLabelsContext } from 'chartjs-plug
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
 import type { ChartPanelConfig, DataSourceConfig } from '../config/types';
 import { PanelContainer } from './PanelContainer';
+import { visuallyHidden } from '../common/a11y';
 import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels, useSetChannelField } from '../linking/useChannel';
 import {
@@ -224,6 +225,63 @@ function CategoryChart({
       }
     : undefined;
 
+  // Keyboard equivalent of hovering/clicking the canvas (WCAG 2.1.1): arrow keys step through
+  // categories (showing Chart.js's own tooltip on that category, and announcing its values via the
+  // live region below), Enter/Space toggles its selection exactly like a click would.
+  const [activeIndex, setActiveIndex] = useState<number | undefined>();
+  const [announcement, setAnnouncement] = useState('');
+  const categoryCount = data.keys.length;
+
+  const describeCategory = (index: number) => {
+    const values = data.series
+      .map((series) => `${data.series.length > 1 ? `${series.label}: ` : ''}${formatChartNumber(series.values[index] ?? 0)}`)
+      .join(', ');
+    const selected = onCategoryClick && selectedKeys.includes(data.keys[index]) ? ' (selected)' : '';
+    return `${data.labels[index]}: ${values}${selected}. ${index + 1} of ${categoryCount}.`;
+  };
+
+  const highlightCategory = (chart: ChartJS | undefined, index: number | undefined) => {
+    if (!chart) return;
+    const elements = index === undefined ? [] : data.series.map((_, datasetIndex) => ({ datasetIndex, index }));
+    chart.setActiveElements(elements);
+    chart.tooltip?.setActiveElements(elements, { x: 0, y: 0 });
+    chart.update();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLCanvasElement>) => {
+    if (categoryCount === 0) return;
+    const chart = ChartJS.getChart(event.currentTarget);
+    if ((event.key === 'Enter' || event.key === ' ') && activeIndex !== undefined && onCategoryClick) {
+      event.preventDefault();
+      const key = data.keys[activeIndex];
+      if (key === undefined || key === OTHER_CATEGORY_KEY) return;
+      onCategoryClick(key);
+      setAnnouncement(`${data.labels[activeIndex]} ${selectedKeys.includes(key) ? 'deselected' : 'selected'}.`);
+      return;
+    }
+    let next: number;
+    const current = activeIndex ?? -1;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % categoryCount;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = current <= 0 ? categoryCount - 1 : current - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = categoryCount - 1;
+    else if (event.key === 'Escape' && activeIndex !== undefined) {
+      setActiveIndex(undefined);
+      highlightCategory(chart, undefined);
+      return;
+    } else return;
+    event.preventDefault();
+    setActiveIndex(next);
+    highlightCategory(chart, next);
+    setAnnouncement(describeCategory(next));
+  };
+
+  const handleBlur = (event: FocusEvent<HTMLCanvasElement>) => {
+    if (activeIndex === undefined) return;
+    setActiveIndex(undefined);
+    highlightCategory(ChartJS.getChart(event.currentTarget), undefined);
+  };
+
   // Axis titles are keyed by VISUAL axis (x = horizontal), so a horizontal bar chart's category
   // axis is `y`. An explicit `xAxisTitle`/`yAxisTitle` (even '') always wins.
   const categoryAxis = horizontal ? 'y' : 'x';
@@ -275,14 +333,55 @@ function CategoryChart({
     }),
   };
 
+  const canvasProps = {
+    'aria-label': `${description}. Use the arrow keys to read each value${onCategoryClick ? ', and Enter to select or deselect it' : ''}.`,
+    tabIndex: 0,
+    onKeyDown: handleKeyDown,
+    onBlur: handleBlur,
+  };
+
   return (
-    <div style={{ flex: 1, minHeight: 0 }}>
-      {isLine && (
-        <Line aria-label={description} data={chartData as ChartData<'line'>} options={options as unknown as ChartOptions<'line'>} />
-      )}
-      {isPie && <Pie aria-label={description} data={chartData as ChartData<'pie'>} options={options as unknown as ChartOptions<'pie'>} />}
-      {isBar && <Bar aria-label={description} data={chartData as ChartData<'bar'>} options={options as unknown as ChartOptions<'bar'>} />}
-    </div>
+    <Box sx={{ flex: 1, minHeight: 0, '& canvas:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 } }}>
+      {isLine && <Line {...canvasProps} data={chartData as ChartData<'line'>} options={options as unknown as ChartOptions<'line'>} />}
+      {isPie && <Pie {...canvasProps} data={chartData as ChartData<'pie'>} options={options as unknown as ChartOptions<'pie'>} />}
+      {isBar && <Bar {...canvasProps} data={chartData as ChartData<'bar'>} options={options as unknown as ChartOptions<'bar'>} />}
+      <Box sx={visuallyHidden} aria-live="polite">
+        {announcement}
+      </Box>
+      <ChartDataTable data={data} caption={description} selectedKeys={onCategoryClick ? selectedKeys : undefined} />
+    </Box>
+  );
+}
+
+// Screen-reader-only text alternative for a category chart's canvas (WCAG 1.1.1) - the same
+// numbers the chart draws, as a real table.
+function ChartDataTable({ data, caption, selectedKeys }: { data: CategoryChartData; caption: string; selectedKeys?: string[] }) {
+  return (
+    <Box component="table" sx={visuallyHidden}>
+      <caption>{caption}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Category</th>
+          {data.series.map((series) => (
+            <th scope="col" key={series.key}>
+              {series.label}
+            </th>
+          ))}
+          {selectedKeys && <th scope="col">Selected</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {data.keys.map((key, index) => (
+          <tr key={key}>
+            <th scope="row">{data.labels[index]}</th>
+            {data.series.map((series) => (
+              <td key={series.key}>{formatChartNumber(series.values[index] ?? 0)}</td>
+            ))}
+            {selectedKeys && <td>{selectedKeys.includes(key) ? 'Yes' : 'No'}</td>}
+          </tr>
+        ))}
+      </tbody>
+    </Box>
   );
 }
 

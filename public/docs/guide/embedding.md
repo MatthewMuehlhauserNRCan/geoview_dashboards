@@ -68,6 +68,12 @@ build your dashboard there, export the config, and paste it in place of the exam
 more than one independent dashboard on the same page - the `<link>`/first `<script>` tag only
 need to be included once no matter how many dashboards you add.
 
+## Headings and accessibility
+
+A dashboard's titles render as real HTML headings, starting at `<h1>` by default. If your page
+already has its own `<h1>` (most do), set `"headingLevel": 2` in the config so the dashboard's
+headings fit under yours - see [Heading levels](guide/title-and-footer.md#heading-levels-headinglevel).
+
 ## Loading the config from a separate file
 
 For a long config, it's often easier to keep it in its own file instead of inline in the page.

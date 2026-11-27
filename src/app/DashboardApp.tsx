@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Box, GlobalStyles, IconButton, ThemeProvider, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -12,6 +12,7 @@ import { FooterElement } from '../footer/FooterElement';
 import { createDashboardTheme } from '../theme/createDashboardTheme';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { TemplateValuesProvider } from '../templateValues/TemplateValuesProvider';
+import { HeadingLevelContext, clampHeadingLevel } from '../common/headingLevel';
 
 // Largest envelope a sheet of Letter paper can offer, in CSS px (96/in), in either orientation -
 // used to pick whichever orientation fits the dashboard's own shape best.
@@ -35,6 +36,17 @@ export function DashboardApp({ config }: DashboardAppProps) {
   const activePage = config.pages.find((page) => page.id === activePageId) ?? config.pages[0];
   const theme = useMemo(() => createDashboardTheme(config.theme), [config.theme]);
   const rootRef = useRef<HTMLDivElement>(null);
+  // Unique per dashboard instance - the embed can mount several dashboards on one host page, and
+  // duplicate ids would break the skip link and the footer tabs' aria-controls/labelledby wiring.
+  const idPrefix = useId();
+  const contentId = `${idPrefix}-content`;
+  const pageTabId = (pageId: string) => `${idPrefix}-page-tab-${pageId.replace(/[^\w-]/g, '_')}`;
+  const hasPageTabs = config.pages.length > 1;
+
+  // Each heading only steps down from whatever's actually rendered above it, so no level is skipped.
+  const titleLevel = clampHeadingLevel(config.headingLevel ?? 1);
+  const pageHeadingLevel = clampHeadingLevel(config.titleElement ? titleLevel + 1 : titleLevel);
+  const panelLevel = clampHeadingLevel(activePage?.pageHeading ? pageHeadingLevel + 1 : pageHeadingLevel);
 
   // The on-screen layout fills the browser viewport, which is almost never the same aspect ratio
   // as a fixed Letter page - naively scaling to fit a FIXED page shape leaves empty space on
@@ -88,6 +100,7 @@ export function DashboardApp({ config }: DashboardAppProps) {
               '--dashboard-grid-background': theme.palette.background.default,
               '--dashboard-divider-color': theme.palette.divider,
               '--dashboard-divider-hover-color': alpha(theme.palette.primary.main, 0.25),
+              '--dashboard-focus-color': theme.palette.primary.main,
             },
             // Scrollbars otherwise follow the OS/browser's own light-vs-dark preference, which
             // can clash with this app's own (possibly differently-themed) light/dark colors.
@@ -102,10 +115,12 @@ export function DashboardApp({ config }: DashboardAppProps) {
           <Box ref={rootRef} sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
             {/* Visually hidden until focused - lets keyboard/screen-reader users jump past the
                 title element's menu buttons straight to the dashboard content. */}
-            <a href="#dashboard-content" className="skip-link no-print">
+            <a href={`#${contentId}`} className="skip-link no-print">
               Skip to dashboard content
             </a>
-            {config.titleElement && <TitleElement config={config.titleElement} dataSources={config.dataSources} />}
+            {config.titleElement && (
+              <TitleElement config={config.titleElement} dataSources={config.dataSources} level={titleLevel} />
+            )}
             {/* Border wraps everything except the title element, which sits outside/above it. */}
             <Box
               sx={{
@@ -136,12 +151,22 @@ export function DashboardApp({ config }: DashboardAppProps) {
               {/* Distinct key prefixes: these are siblings, and duplicate sibling keys make React
                   leak stale copies on page switch instead of replacing them. */}
               {activePage.titlePanel && <TitlePanel key={`title-panel-${activePage.id}`} config={activePage.titlePanel} />}
-              {activePage.pageHeading && <PageHeading key={`page-heading-${activePage.id}`} config={activePage.pageHeading} />}
+              {activePage.pageHeading && (
+                <PageHeading key={`page-heading-${activePage.id}`} config={activePage.pageHeading} level={pageHeadingLevel} />
+              )}
               {/* Only the grid gets the remaining space and may scroll/shrink - nothing around it
                   is ever pushed off-screen or clipped. `id`/`tabIndex` make this the skip link's
                   target; `region`+`aria-label` give it a landmark (not `main`, since the embed
-                  bundle can be dropped into a host page that already has its own `<main>`). */}
-              <Box id="dashboard-content" tabIndex={-1} role="region" aria-label={config.title} sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  bundle can be dropped into a host page that already has its own `<main>`). With
+                  page tabs it's instead the tabs' `tabpanel`, labelled by the active page's tab. */}
+              <Box
+                id={contentId}
+                tabIndex={-1}
+                role={hasPageTabs ? 'tabpanel' : 'region'}
+                aria-label={hasPageTabs ? undefined : config.title}
+                aria-labelledby={hasPageTabs ? pageTabId(activePage.id) : undefined}
+                sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+              >
                 {activePage && (
                   <ErrorBoundary
                     key={activePage.id}
@@ -152,12 +177,20 @@ export function DashboardApp({ config }: DashboardAppProps) {
                       </Box>
                     )}
                   >
-                    <DashboardGrid grid={activePage.grid} panels={activePage.panels} dataSources={config.dataSources} />
+                    <HeadingLevelContext.Provider value={panelLevel}>
+                      <DashboardGrid grid={activePage.grid} panels={activePage.panels} dataSources={config.dataSources} />
+                    </HeadingLevelContext.Provider>
                   </ErrorBoundary>
                 )}
               </Box>
               {config.pages.length > 1 && (
-                <FooterElement pages={config.pages} activePageId={activePage.id} onChange={setActivePageId} />
+                <FooterElement
+                  pages={config.pages}
+                  activePageId={activePage.id}
+                  onChange={setActivePageId}
+                  tabId={pageTabId}
+                  panelId={contentId}
+                />
               )}
             </Box>
           </Box>

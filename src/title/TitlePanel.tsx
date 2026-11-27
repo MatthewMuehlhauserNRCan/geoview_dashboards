@@ -1,6 +1,8 @@
 import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import type { TitlePanelConfig } from '../config/types';
 import { useFillTemplateValues } from '../templateValues/context';
+import { contrastTextFor } from '../common/a11y';
 import { useResizableHeight } from './useResizableHeight';
 
 interface TitlePanelProps {
@@ -14,11 +16,13 @@ export function TitlePanel({ config }: TitlePanelProps) {
   const { height, containerRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp, onHandleKeyDown } =
     useResizableHeight(32);
   const background = config.backgroundColor ?? 'primary.main';
+  const theme = useTheme();
+  const textColor = contrastTextFor(theme, config.backgroundColor, theme.palette.primary.contrastText);
   const fill = useFillTemplateValues();
 
   return (
     <Box ref={containerRef} sx={{ flex: '0 0 auto', width: '100%', display: 'flex', flexDirection: 'column' }} style={{ height }}>
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', width: '100%', bgcolor: background, color: 'primary.contrastText' }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', width: '100%', bgcolor: background, color: textColor }}>
         <Box sx={{ flex: `${config.leftWidth ?? 1} 1 0`, minWidth: 0, px: 2 }}>{config.left && fill(config.left)}</Box>
         {config.image && (
           <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', px: 2 }}>

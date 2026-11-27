@@ -11,6 +11,7 @@ interface DashboardConfig {
   id: string;
   title: string;
   titleElement?: TitleElementConfig; // dashboard-wide header - see Title & Footer
+  headingLevel?: number; // HTML level (1-6) of the top heading, default 1 - see Title & Footer
   theme?: DashboardThemeConfig; // dashboard-wide colors - see Theming
   pages: DashboardPageConfig[]; // one or more independent grid+panel sets
   dataSources: DataSourceConfig[]; // shared by every page

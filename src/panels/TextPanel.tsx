@@ -7,6 +7,8 @@ import { PanelContainer } from './PanelContainer';
 import { useDataSource } from '../dataSources/useDataSource';
 import { fillTextTemplate, renderTextTemplate } from './textTemplate';
 import { useTemplateValues } from '../templateValues/context';
+import { useHeadingLevel } from '../common/headingLevel';
+import { useMarkdownHeadings } from './markdownHeadings';
 
 interface TextPanelProps {
   panel: TextPanelConfig;
@@ -40,9 +42,12 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
     dataSources,
   );
   const templateValues = useTemplateValues();
+  // Read OUTSIDE PanelContainer, so this is the panel title's own level - content sits one below it.
+  const headingLevel = useHeadingLevel();
+  const markdownHeadings = useMarkdownHeadings(panel.title ? headingLevel + 1 : headingLevel);
 
   const footer = panel.footer ? (
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+    <ReactMarkdown components={markdownHeadings} remarkPlugins={[remarkGfm, remarkBreaks]}>
       {fillTextTemplate(panel.footer, templateRows?.[0], templateValues)}
     </ReactMarkdown>
   ) : undefined;
@@ -65,7 +70,7 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
               when a template's own header/value lines use just one newline between them). Only
               applied here, not to a `contentUrl`/`content` document, which is more likely genuine
               multi-paragraph prose relying on normal markdown line-wrapping. */}
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
+          <ReactMarkdown components={markdownHeadings} remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
         </div>
       </PanelContainer>
     );
@@ -93,7 +98,7 @@ export function TextPanel({ panel, dataSources }: TextPanelProps) {
     <PanelContainer title={panel.title} footer={footer}>
       {renderMarkdown ? (
         <div className="markdown-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+          <ReactMarkdown components={markdownHeadings} remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         </div>
       ) : (
         <div>{text}</div>

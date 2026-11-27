@@ -110,6 +110,11 @@ docs/ARCHITECTURE.md   internal, chronological decision log - NOT for dashboard 
   `useTheme()` in `DashboardApp.tsx` - if you add a new hardcoded color anywhere, bridge it the
   same way rather than leaving it unthemed. The editor's own UI chrome is deliberately NOT themed
   by the config being edited (it's an authoring tool, not a live preview).
+- **Accessibility**: titles are real headings whose level comes from `HeadingLevelContext`
+  (`src/common/headingLevel.ts`) - a new titled element should use `headingTag(useHeadingLevel())`
+  as its `component`, never a hardcoded `h1`-`h6`, and keep visual size on `variant`. Never use
+  fixed DOM ids (embed can mount several dashboards) - use `useId()`. Details in
+  `docs/ARCHITECTURE.md` section 15.
 - **Embed bundle self-containment**: `src/embed.tsx` imports `App.css` directly (grid/divider
   classNames live there) so the standalone IIFE stays fully self-contained. If you add a new
   plain-CSS-class dependency anywhere reachable from `DashboardApp`, make sure it's covered by

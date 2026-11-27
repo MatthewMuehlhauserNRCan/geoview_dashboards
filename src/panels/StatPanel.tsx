@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
@@ -12,6 +12,7 @@ import { useDataSource } from '../dataSources/useDataSource';
 import { useListenChannels } from '../linking/useChannel';
 import { rowMatchesFieldFilter } from '../linking/rowFilter';
 import { aggregateValues } from '../dataSources/aggregate';
+import { visuallyHidden } from '../common/a11y';
 
 ChartJS.register(ArcElement, Tooltip, annotationPlugin);
 
@@ -53,7 +54,12 @@ export function StatPanel({ panel, dataSources }: StatPanelProps) {
   return (
     <PanelContainer title={panel.title} centerContent>
       {isLoading ? (
-        <Typography sx={{ fontSize: '2rem' }}>…</Typography>
+        <Typography sx={{ fontSize: '2rem' }}>
+          <span aria-hidden="true">…</span>
+          <Box component="span" sx={visuallyHidden}>
+            Loading
+          </Box>
+        </Typography>
       ) : panel.display === 'gauge' ? (
         <Gauge value={value} gauge={panel.gauge} defaultMax={unfilteredValue} />
       ) : (

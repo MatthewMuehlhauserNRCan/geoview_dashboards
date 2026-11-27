@@ -137,9 +137,10 @@ export function LegendPanel({ panel }: LegendPanelProps) {
           No layers on this map.
         </Typography>
       ) : (
-        <List dense disablePadding>
+        // A plain div, not a <ul>: its children are per-layer groups of buttons, not <li>s.
+        <List dense disablePadding component="div">
           {layers.map((layer) => (
-            <Box key={layer.layerId}>
+            <Box key={layer.layerId} role="group" aria-label={layer.layerName}>
               {showLayerHeaders && (
                 <LegendRow
                   label={layer.layerName}

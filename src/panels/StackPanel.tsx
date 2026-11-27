@@ -3,6 +3,7 @@ import type { DataSourceConfig, StackPanelConfig } from '../config/types';
 import { leafPanelRegistry } from './leafRegistry';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
 import { toPercentFromWeights } from '../grid/layoutUtils';
+import { columnGridlineRef, rowGridlineRef } from '../grid/gridlineA11y';
 
 interface StackPanelProps {
   panel: StackPanelConfig;
@@ -48,9 +49,9 @@ export function StackPanel({ panel, dataSources }: StackPanelProps) {
       })}
       {Array.from({ length: count - 1 }, (_, index) => index + 1).map((boundary) =>
         isColumnSplit ? (
-          <Gridline key={boundary} className="grid-divider" type="column" column={boundary} row={0} rowSpan={1} />
+          <Gridline key={boundary} className="grid-divider" elementRef={columnGridlineRef} type="column" column={boundary} row={0} rowSpan={1} />
         ) : (
-          <Gridline key={boundary} className="grid-divider" type="row" row={boundary} column={0} columnSpan={1} />
+          <Gridline key={boundary} className="grid-divider" elementRef={rowGridlineRef} type="row" row={boundary} column={0} columnSpan={1} />
         )
       )}
     </Grid>

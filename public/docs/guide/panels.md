@@ -142,7 +142,9 @@ interface ChartPanelConfig {
   selected at once) in whichever channel this panel `emits` to (see [Linking](guide/linking.md)) -
   clicking an already-selected one again removes just that one. With a `seriesField`, a click
   selects the **category** (`field` value), not the series. A "Clear selection" button appears
-  whenever anything is selected.
+  whenever anything is selected. Keyboard users can Tab to the chart, step through categories
+  with the arrow keys (each one's values are read out), and press Enter/Space to select one.
+  Screen readers also get the chart's numbers as a hidden data table.
 - `filterToMapView` (default `true`): when this panel `listensTo` a channel a map panel is
   publishing its view extent onto, restricts the chart's own rows to just the current map view -
   see "Filtering other panels to the current map view" under `map` above. Ignored entirely when no
@@ -496,9 +498,9 @@ auto-generated per row of `dataSource` - e.g. one card per organization. `column
 show per row on wide screens (still naturally wraps to fewer on narrower ones, down to a single
 stacked column at phone width); omit it for a fully responsive auto-fit grid instead.
 
-Each card has a **front** and a **back**, swapped by hovering the card (desktop) or tapping its
-own expand icon (touch only - a real pointer device already reveals the back on hover alone, so
-the icon doesn't show there at all):
+Each card has a **front** and a **back**, swapped by hovering the card (desktop) or using its
+own expand button. On touch devices the button is always shown; with a mouse it only appears on
+hover, but keyboard users can still Tab to it:
 - **Front**: a colored band (`color`, always shown) containing `icon` - sized smaller than the
   band itself and centered, not stretched edge-to-edge - which is expected to already contain the
   card's own branding/title baked into the graphic (e.g. a logo + organization name) on a

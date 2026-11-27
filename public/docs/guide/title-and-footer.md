@@ -95,12 +95,37 @@ left/image/right layout, this is just one line, meant for content that genuinely
 interface PageHeadingConfig {
   text: string;
   align?: 'left' | 'center' | 'right'; // defaults to 'center'
-  textColor?: string;
+  size?: 'small' | 'medium' | 'large'; // visual text size only, defaults to 'medium'
+  textColor?: string; // defaults to black/white, whichever reads better on backgroundColor
   backgroundColor?: string;
 }
 ```
 
 Set per-page (`DashboardPageConfig.pageHeading`).
+
+## Heading levels (`headingLevel`)
+
+The title element's title, each page heading, and every panel title render as real HTML headings
+(`<h1>`-`<h6>`), so screen reader users can jump between them. Markdown headings inside text and
+cards panels are moved down to fit under their panel's title too. The levels step down in order,
+skipping anything that isn't shown, so no level is ever skipped:
+
+| Element | Level (default) |
+| --- | --- |
+| Title element | `headingLevel` (1) |
+| Page heading | one below the title element (2) |
+| Panel titles | one below the page heading (3) |
+| Panels inside a tab panel, card titles | one below their panel's title (4) |
+
+```ts
+headingLevel?: number; // DashboardConfig, 1-6, defaults to 1
+```
+
+Leave it at 1 for a standalone dashboard. When [embedding](guide/embedding.md) into a page that
+already has its own `<h1>`, set `"headingLevel": 2` (or lower) so the dashboard fits under the
+host page's own headings. This only changes the HTML structure - visual text sizes stay the same.
+
+In the editor, set it under **Header** in the toolbar.
 
 ## Data values in titles (`templateValues`)
 

@@ -24,15 +24,20 @@ import type { FieldFilterValue } from '../linking/rowFilter';
 import { buildFilterExpression } from '../map/filterExpression';
 import { getMapHandle } from '../map/registry';
 import { useFillTemplateValues } from '../templateValues/context';
+import { useTheme } from '@mui/material/styles';
+import { contrastTextFor, visuallyHidden } from '../common/a11y';
+import { headingTag } from '../common/headingLevel';
 
 interface TitleElementProps {
   config: TitleElementConfig;
   dataSources: DataSourceConfig[];
+  level: number;
 }
 
 // The fixed, non-resizable header above everything else (including the resizable title panel) -
 // logo on the left, title/subtitle in the middle, options + hamburger menus on the right.
-export function TitleElement({ config, dataSources }: TitleElementProps) {
+export function TitleElement({ config, dataSources, level }: TitleElementProps) {
+  const theme = useTheme();
   const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
   const [hamburgerAnchor, setHamburgerAnchor] = useState<HTMLElement | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
@@ -59,7 +64,15 @@ export function TitleElement({ config, dataSources }: TitleElementProps) {
   };
 
   return (
-    <AppBar position="static" sx={{ bgcolor: config.backgroundColor ?? 'primary.main', flex: '0 0 auto' }}>
+    <AppBar
+      position="static"
+      sx={{
+        bgcolor: config.backgroundColor ?? 'primary.main',
+        // AppBar's own text color is primary.contrastText, which needn't contrast with a custom background.
+        color: contrastTextFor(theme, config.backgroundColor, theme.palette.primary.contrastText),
+        flex: '0 0 auto',
+      }}
+    >
       <Toolbar sx={{ gap: 2 }}>
         {config.image && (
           <Box
@@ -67,11 +80,16 @@ export function TitleElement({ config, dataSources }: TitleElementProps) {
             href={config.image.href}
             sx={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}
           >
-            <img src={config.image.src} alt={config.image.alt ?? ''} style={{ height: 32, display: 'block' }} />
+            {/* A linked logo with no alt text would be a link with no accessible name - fall back to the title. */}
+            <img
+              src={config.image.src}
+              alt={config.image.alt || (config.image.href ? fill(config.title) : '')}
+              style={{ height: 32, display: 'block' }}
+            />
           </Box>
         )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component={headingTag(level)}>
             {fill(config.title)}
           </Typography>
           {subtitle && (
@@ -97,7 +115,13 @@ export function TitleElement({ config, dataSources }: TitleElementProps) {
             </IconButton>
             <Menu anchorEl={optionsAnchor} open={Boolean(optionsAnchor)} onClose={() => setOptionsAnchor(null)}>
               {config.optionsMenu.options.map((option) => (
-                <MenuItem key={option.id} selected={activeOptionId === option.id} onClick={() => handleOptionClick(option)}>
+                <MenuItem
+                  key={option.id}
+                  role="menuitemradio"
+                  aria-checked={activeOptionId === option.id}
+                  selected={activeOptionId === option.id}
+                  onClick={() => handleOptionClick(option)}
+                >
                   <ListItemIcon>{activeOptionId === option.id && <CheckIcon fontSize="small" />}</ListItemIcon>
                   {option.label}
                 </MenuItem>
@@ -126,6 +150,10 @@ export function TitleElement({ config, dataSources }: TitleElementProps) {
                   onClick={() => setHamburgerAnchor(null)}
                 >
                   {link.label}
+                  <Box component="span" sx={visuallyHidden}>
+                    {' '}
+                    (opens in a new tab)
+                  </Box>
                 </MenuItem>
               ))}
               {config.hamburgerMenu.notice && (

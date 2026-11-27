@@ -356,6 +356,7 @@ const titlePanelSchema = z.object({
 const pageHeadingSchema = z.object({
   text: z.string(),
   align: z.enum(['left', 'center', 'right']).optional(),
+  size: z.enum(['small', 'medium', 'large']).optional(),
   textColor: z.string().optional(),
   backgroundColor: z.string().optional(),
 });
@@ -401,6 +402,7 @@ export const dashboardConfigSchema = z.object({
   id: z.string(),
   title: z.string(),
   titleElement: titleElementSchema.optional(),
+  headingLevel: z.number().int().min(1).max(6).optional(),
   theme: dashboardThemeSchema.optional(),
   pages: z.array(dashboardPageSchema),
   dataSources: z.array(dataSourceSchema),

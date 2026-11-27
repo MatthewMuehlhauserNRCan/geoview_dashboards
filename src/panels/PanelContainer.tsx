@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Box, Card, CardContent, CardHeader, Dialog, IconButton } from '@mui/material';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import { HeadingLevelContext, clampHeadingLevel, headingTag, useHeadingLevel } from '../common/headingLevel';
 
 interface PanelContainerProps {
   title?: string;
@@ -60,6 +61,9 @@ export function PanelContainer({
   footer,
 }: PanelContainerProps) {
   const [expanded, setExpanded] = useState(false);
+  const level = useHeadingLevel();
+  const dialogTitleId = useId();
+  const titleSlotProps = { title: { component: headingTag(level) } };
 
   // No title: the header row would be mostly empty space, so the button floats over the
   // content's corner instead of reserving its own CardHeader row.
@@ -73,6 +77,8 @@ export function PanelContainer({
         opacity: 0,
         transition: 'opacity 0.15s ease',
         '&:focus-visible': { opacity: 1 },
+        // No hover on touch devices - an invisible-until-hover button would never be found there.
+        '@media (hover: none)': { opacity: 1 },
         ...(!title && {
           position: 'absolute',
           top: 4,
@@ -85,6 +91,14 @@ export function PanelContainer({
     >
       <FullscreenIcon fontSize="small" />
     </IconButton>
+  );
+
+  // Anything titled inside this panel (a tab panel's child panels, a card's title) sits one
+  // heading level below this panel's own title.
+  const nestedChildren = title ? (
+    <HeadingLevelContext.Provider value={clampHeadingLevel(level + 1)}>{children}</HeadingLevelContext.Provider>
+  ) : (
+    children
   );
 
   return (
@@ -102,6 +116,7 @@ export function PanelContainer({
         {title ? (
           <CardHeader
             title={title}
+            slotProps={titleSlotProps}
             action={
               headerAction ? (
                 <>
@@ -129,7 +144,7 @@ export function PanelContainer({
             ...(disablePadding && { p: 0, '&:last-child': { pb: 0 } }),
           }}
         >
-          {children}
+          {nestedChildren}
         </CardContent>
         {footer && <PanelFooter>{footer}</PanelFooter>}
         {!title && headerAction && (
@@ -149,11 +164,17 @@ export function PanelContainer({
         {!title && expandButton}
       </Card>
       {expandable && (
-        <Dialog open={expanded} onClose={() => setExpanded(false)} fullScreen>
+        <Dialog
+          open={expanded}
+          onClose={() => setExpanded(false)}
+          fullScreen
+          {...(title ? { 'aria-labelledby': dialogTitleId } : { 'aria-label': 'Expanded panel' })}
+        >
           <CardHeader
             title={title}
+            slotProps={{ title: { ...titleSlotProps.title, id: dialogTitleId } }}
             action={
-              <IconButton aria-label="Close" onClick={() => setExpanded(false)}>
+              <IconButton aria-label="Exit full screen" onClick={() => setExpanded(false)}>
                 <FullscreenExitIcon />
               </IconButton>
             }
@@ -168,7 +189,7 @@ export function PanelContainer({
               ...(centerContent && { alignItems: 'center', justifyContent: 'center' }),
             }}
           >
-            {children}
+            {nestedChildren}
           </CardContent>
           {footer && <PanelFooter>{footer}</PanelFooter>}
         </Dialog>

@@ -188,7 +188,8 @@ export function MapPanel({ panel, dataSources = [] }: MapPanelProps) {
       <Box
         ref={containerRef}
         tabIndex={-1}
-        aria-label="Interactive map. Press Escape to exit the map and continue tabbing through the page."
+        role="region"
+        aria-label={`${panel.title ? `${panel.title}: interactive map` : 'Interactive map'}. Press Escape to exit the map and continue tabbing through the page.`}
         onKeyDown={(event) => {
           if (event.key === 'Escape') containerRef.current?.focus();
         }}
