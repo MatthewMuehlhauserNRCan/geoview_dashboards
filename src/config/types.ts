@@ -189,6 +189,10 @@ export interface TextPanelConfig extends BasePanelConfig {
   emptyContent?: string;
   // how `content` is rendered; ignored when `contentUrl`/`template` is set (always markdown there). Defaults to 'plain'.
   format?: 'plain' | 'markdown';
+  // markdown pinned to the bottom of the panel (stays put while the body scrolls) - e.g. a
+  // "Sources: ..." citation. Supports `{{$id}}` dashboard values and `{{FieldName}}` placeholders
+  // (filled from `dataSource`'s first row) / `{{#Field}}...{{/Field}}` sections, like `template`.
+  footer?: string;
 }
 
 export interface ImageItemConfig {

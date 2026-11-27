@@ -122,6 +122,7 @@ const textPanelFields = z
     repeatTemplate: z.boolean().optional(),
     emptyContent: z.string().optional(),
     format: z.enum(['plain', 'markdown']).optional(),
+    footer: z.string().optional(),
   })
   .refine((panel) => Boolean(panel.content) || Boolean(panel.contentUrl) || Boolean(panel.template), {
     message: 'text panel requires `content`, `contentUrl`, or `template`',

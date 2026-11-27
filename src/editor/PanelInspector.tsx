@@ -824,6 +824,17 @@ export function LeafPanelFields({ leafPanel, dataSources, channels, mapPanelOpti
               <MenuItem value="markdown">Markdown</MenuItem>
             </Select>
           </FormControl>
+          <TextField
+            label="Footer"
+            placeholder="Sources: [Canadian Meteorological Centre](https://weather.gc.ca) (CMC)"
+            helperText="Optional - markdown pinned to the bottom of the panel (stays visible while the content scrolls), e.g. a source citation. Supports {{$valueId}} values and {{FieldName}} from Data source's first row."
+            value={leafPanel.footer ?? ''}
+            multiline
+            minRows={2}
+            fullWidth
+            size="small"
+            onChange={(e) => onChange((p) => (p.type === 'text' ? { ...p, footer: e.target.value || undefined } : p))}
+          />
         </Stack>
       )}
 

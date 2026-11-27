@@ -25,6 +25,28 @@ interface PanelContainerProps {
   // panel whose body resizes based on this action's visibility (e.g. a chart canvas) doesn't
   // visibly jump/resize every time it appears or disappears.
   headerAction?: ReactNode;
+  // Pinned below the (scrolling) body, inside the card - e.g. a source citation that should stay
+  // visible however far the content is scrolled.
+  footer?: ReactNode;
+}
+
+function PanelFooter({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      className="markdown-content"
+      sx={{
+        flex: '0 0 auto',
+        px: 2,
+        py: 1,
+        borderTop: 1,
+        borderColor: 'divider',
+        fontSize: '0.875rem',
+        '& p': { my: 0 },
+      }}
+    >
+      {children}
+    </Box>
+  );
 }
 
 export function PanelContainer({
@@ -35,6 +57,7 @@ export function PanelContainer({
   disablePadding = false,
   centerContent = false,
   headerAction,
+  footer,
 }: PanelContainerProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -108,6 +131,7 @@ export function PanelContainer({
         >
           {children}
         </CardContent>
+        {footer && <PanelFooter>{footer}</PanelFooter>}
         {!title && headerAction && (
           <Box
             sx={{
@@ -146,6 +170,7 @@ export function PanelContainer({
           >
             {children}
           </CardContent>
+          {footer && <PanelFooter>{footer}</PanelFooter>}
         </Dialog>
       )}
     </>

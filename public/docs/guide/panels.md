@@ -355,6 +355,7 @@ interface TextPanelConfig {
   repeatTemplate?: boolean; // repeat `template` per row (default true) or use only the first row
   emptyContent?: string; // markdown shown instead of `template` when `dataSource` has zero rows
   format?: 'plain' | 'markdown'; // how `content` is rendered; defaults to 'plain'
+  footer?: string; // markdown pinned to the bottom of the panel, e.g. a source citation
 }
 ```
 
@@ -414,6 +415,14 @@ interface TextPanelConfig {
   newline into just a space, which is easy to trip over when a template's own header/value lines
   are only one newline apart, e.g. `'**Activation Level**\n{{ActivationLevel}}'` - this is exactly
   what makes that render as two lines instead of one run-on sentence).
+- **Footer**: `footer` is markdown pinned to the bottom of the panel, below a thin divider - it
+  stays visible while the body above it scrolls, so it's the place for a "Sources: ..." citation.
+  It works with any of `content`/`contentUrl`/`template`, and supports the same placeholders as
+  `template`: `{{$id}}` dashboard values, plus `{{FieldName}}` / `{{#Field}}...{{/Field}}` filled
+  from the **first** row of `dataSource`. Single `\n` line breaks are kept, like `template`.
+  ```ts
+  footer: 'Sources: [Canadian Meteorological Centre](https://weather.gc.ca) (CMC), [Environment and Climate Change Canada](https://www.canada.ca/en/environment-climate-change.html) (ECCC).'
+  ```
 - Raw HTML embedded in markdown is NOT rendered (intentionally, to avoid a script-injection risk
   when `contentUrl`/`template` points at content the dashboard author doesn't fully control) - only
   genuine markdown syntax is converted to formatting.
